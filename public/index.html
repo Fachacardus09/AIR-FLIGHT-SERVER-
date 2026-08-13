@@ -1,0 +1,5227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width,
+initial-scale=1,
+maximum-scale=1,
+user-scalable=no">
+
+<title>AIR FLIGHT</title>
+
+<style>
+
+*{
+box-sizing:border-box;
+-webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+margin:0;
+width:100%;
+height:100%;
+overflow:hidden;
+background:#111;
+font-family:Arial,sans-serif;
+touch-action:none;
+}
+
+#game{
+position:fixed;
+inset:0;
+z-index:1;
+}
+
+.panel{
+position:fixed;
+inset:0;
+z-index:100;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+color:white;
+text-align:center;
+background:
+linear-gradient(
+rgba(20,90,150,.25),
+rgba(0,0,0,.70)
+),
+linear-gradient(
+180deg,
+#37a9e8 0%,
+#1668a5 50%,
+#082b4b 100%
+);
+overflow:hidden;
+}
+
+/* =====================================================
+   SCROLL ESPECIAL MULTIJUGADOR
+===================================================== */
+
+#multiplayerMenu{
+justify-content:flex-start;
+overflow-y:auto;
+overflow-x:hidden;
+-webkit-overflow-scrolling:touch;
+touch-action:pan-y;
+padding:25px 0 40px;
+}
+
+#multiplayerMenu h1{
+flex-shrink:0;
+margin:10px 0 15px;
+}
+
+#multiplayerMenu .multiCard,
+#multiplayerMenu .smallButton{
+flex-shrink:0;
+}
+
+#multiplayerMenu::-webkit-scrollbar{
+width:6px;
+}
+
+#multiplayerMenu::-webkit-scrollbar-thumb{
+background:rgba(255,255,255,.5);
+border-radius:10px;
+}
+
+.panel::before{
+content:"☁️     ☁️        ☁️";
+position:absolute;
+top:12%;
+left:-10%;
+width:120%;
+font-size:55px;
+opacity:.55;
+white-space:nowrap;
+animation:nubes 18s linear infinite;
+pointer-events:none;
+}
+
+@keyframes nubes{
+from{transform:translateX(-10%);}
+to{transform:translateX(10%);}
+}
+
+.logo{
+position:relative;
+z-index:2;
+font-size:52px;
+font-weight:900;
+margin:0 0 15px;
+transform:rotate(-3deg);
+color:white;
+text-shadow:
+4px 4px 0 #07539b,
+6px 6px 0 #000,
+0 10px 20px rgba(0,0,0,.7);
+}
+
+.topStats{
+position:absolute;
+top:15px;
+right:15px;
+padding:10px 14px;
+border-radius:14px;
+background:rgba(0,0,0,.65);
+border:2px solid white;
+font-weight:bold;
+text-shadow:2px 2px 3px #000;
+z-index:5;
+}
+
+.moneyBox{
+position:relative;
+z-index:3;
+padding:10px 20px;
+margin-bottom:12px;
+background:rgba(0,0,0,.65);
+border:2px solid white;
+border-radius:15px;
+font-size:18px;
+font-weight:bold;
+box-shadow:0 5px 12px rgba(0,0,0,.5);
+}
+
+.menuButtons{
+position:relative;
+z-index:3;
+display:grid;
+grid-template-columns:repeat(2,160px);
+gap:12px;
+margin-top:8px;
+}
+
+.menuButton{
+width:160px;
+min-height:57px;
+padding:12px;
+border:3px solid white;
+border-radius:16px;
+background:linear-gradient(#39a4ef,#07539b);
+color:white;
+font-size:17px;
+font-weight:bold;
+box-shadow:
+0 5px 0 #04345e,
+0 8px 15px rgba(0,0,0,.5);
+text-shadow:2px 2px 3px #000;
+cursor:pointer;
+}
+
+.menuButton:active{
+transform:translateY(4px);
+box-shadow:0 2px 0 #04345e;
+}
+
+.playButton{
+grid-column:1/3;
+width:260px;
+justify-self:center;
+font-size:25px;
+background:linear-gradient(#4be66a,#128c2c);
+box-shadow:
+0 6px 0 #075b18,
+0 9px 18px rgba(0,0,0,.6);
+}
+
+.smallButton{
+padding:11px 25px;
+margin-top:15px;
+border:2px solid white;
+border-radius:12px;
+background:#1764ad;
+color:white;
+font-size:16px;
+font-weight:bold;
+box-shadow:0 4px 0 #063c6c;
+}
+
+.smallButton:active{
+transform:translateY(3px);
+box-shadow:none;
+}
+
+.shop{
+width:min(92%,520px);
+max-height:62vh;
+overflow:auto;
+padding:5px;
+}
+
+.item{
+width:100%;
+padding:13px;
+margin:7px 0;
+background:rgba(0,0,0,.65);
+border:2px solid rgba(255,255,255,.7);
+border-radius:14px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+font-weight:bold;
+}
+
+.item button{
+padding:9px 12px;
+border:0;
+border-radius:9px;
+font-weight:bold;
+background:#f1c40f;
+color:#111;
+}
+
+.item small{
+display:block;
+font-size:12px;
+opacity:.85;
+margin-top:4px;
+}
+
+.shop hr{
+border:0;
+height:5px;
+background:#ff0808;
+margin:14px 0;
+border-radius:5px;
+}
+
+#skinsList{
+position:relative;
+z-index:3;
+}
+
+.skin{
+width:min(92vw,400px);
+margin:5px;
+padding:12px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+background:rgba(0,0,0,.65);
+border:2px solid white;
+border-radius:13px;
+font-size:17px;
+font-weight:bold;
+}
+
+.skin button{
+border:0;
+border-radius:10px;
+padding:8px 12px;
+font-size:18px;
+}
+
+.skill{
+font-size:12px;
+font-weight:normal;
+opacity:.9;
+display:block;
+margin-top:4px;
+}
+
+.sectionTitle{
+width:100%;
+margin:12px 0 5px;
+padding:8px;
+background:rgba(0,0,0,.45);
+border-radius:10px;
+font-size:18px;
+}
+
+#hud{
+position:fixed;
+top:12px;
+left:12px;
+z-index:30;
+color:white;
+font-size:18px;
+font-weight:bold;
+text-shadow:2px 2px 5px #000;
+pointer-events:none;
+display:none;
+}
+
+#hud div{
+margin-bottom:4px;
+}
+
+#abilityHud{
+margin-top:8px;
+padding:6px 10px;
+border-radius:10px;
+background:rgba(0,0,0,.5);
+font-size:14px;
+}
+
+#abilityBar{
+width:120px;
+height:8px;
+background:#333;
+border-radius:5px;
+overflow:hidden;
+margin-top:4px;
+}
+
+#abilityFill{
+height:100%;
+width:100%;
+background:#42d7ff;
+transition:width .1s;
+}
+
+#scenario{
+position:fixed;
+top:12px;
+left:50%;
+transform:translateX(-50%);
+z-index:30;
+color:white;
+font-weight:bold;
+font-size:19px;
+text-shadow:2px 2px 5px #000;
+display:none;
+}
+
+#modeHud{
+position:fixed;
+top:12px;
+right:12px;
+z-index:30;
+color:white;
+font-weight:bold;
+font-size:14px;
+text-shadow:2px 2px 5px #000;
+display:none;
+text-align:right;
+}
+
+#joystick{
+position:fixed;
+left:22px;
+bottom:22px;
+width:135px;
+height:135px;
+border:3px solid rgba(255,255,255,.5);
+border-radius:50%;
+background:rgba(255,255,255,.15);
+z-index:40;
+display:none;
+}
+
+#stick{
+position:absolute;
+width:55px;
+height:55px;
+left:50%;
+top:50%;
+transform:translate(-50%,-50%);
+border-radius:50%;
+background:rgba(255,255,255,.92);
+box-shadow:0 3px 10px rgba(0,0,0,.35);
+}
+
+#sensorButton{
+position:fixed;
+right:14px;
+bottom:22px;
+z-index:40;
+padding:11px;
+border-radius:12px;
+border:2px solid white;
+background:rgba(0,0,0,.6);
+color:white;
+font-weight:bold;
+display:none;
+}
+
+#sensitivityButton{
+position:fixed;
+right:14px;
+bottom:78px;
+z-index:40;
+padding:9px;
+border-radius:12px;
+border:2px solid white;
+background:rgba(0,0,0,.6);
+color:white;
+font-weight:bold;
+display:none;
+}
+
+#launch{
+display:none;
+position:fixed;
+inset:0;
+z-index:80;
+align-items:center;
+justify-content:center;
+color:white;
+font-size:30px;
+font-weight:bold;
+text-shadow:3px 3px 10px #000;
+background:rgba(0,0,0,.12);
+}
+
+.mission{
+width:100%;
+padding:12px;
+margin:6px 0;
+border-radius:12px;
+background:rgba(0,0,0,.65);
+text-align:left;
+}
+
+.bar{
+height:10px;
+width:100%;
+margin-top:7px;
+background:#333;
+border-radius:8px;
+overflow:hidden;
+}
+
+.fill{
+height:100%;
+width:0%;
+background:#37a7ff;
+}
+
+#gameOver{
+display:none;
+}
+
+.controlBox{
+width:min(92%,450px);
+padding:15px;
+border-radius:15px;
+background:rgba(0,0,0,.55);
+max-height:72vh;
+overflow-y:auto;
+}
+
+.controlBox label{
+display:block;
+margin:12px 0;
+font-weight:bold;
+}
+
+.controlBox input{
+width:100%;
+}
+
+.multiCard{
+width:min(92%,460px);
+padding:15px;
+border:2px solid white;
+border-radius:15px;
+background:rgba(0,0,0,.55);
+margin:7px;
+}
+
+.onlineDot{
+display:inline-block;
+width:10px;
+height:10px;
+border-radius:50%;
+background:#37e66b;
+margin-right:5px;
+}
+
+.roomCode{
+font-size:34px;
+font-weight:900;
+letter-spacing:7px;
+padding:14px;
+margin:10px 0;
+background:rgba(0,0,0,.7);
+border:2px solid white;
+border-radius:12px;
+}
+
+.roomInput{
+width:100%;
+padding:14px;
+font-size:22px;
+font-weight:bold;
+text-align:center;
+text-transform:uppercase;
+border-radius:12px;
+border:2px solid white;
+margin:10px 0;
+}
+
+.roomStatus{
+font-weight:bold;
+min-height:20px;
+}
+
+.roomPlayers{
+max-height:130px;
+overflow:auto;
+margin-top:10px;
+}
+
+.roomPlayer{
+padding:7px;
+margin:4px 0;
+background:rgba(255,255,255,.1);
+border-radius:8px;
+}
+
+.speedBox{
+width:min(92%,460px);
+padding:15px;
+border:2px solid white;
+border-radius:15px;
+background:rgba(0,0,0,.55);
+margin:7px;
+}
+
+.speedBox input{
+width:100%;
+}
+
+.speedNumber{
+font-size:30px;
+font-weight:900;
+margin:8px;
+}
+
+.speedBoxControls{
+margin-top:18px;
+padding-top:14px;
+border-top:2px solid rgba(255,255,255,.3);
+}
+
+.speedBoxControls h2{
+margin:5px 0;
+}
+
+@media(max-width:500px){
+
+.logo{
+font-size:43px;
+}
+
+.menuButtons{
+grid-template-columns:repeat(2,145px);
+gap:10px;
+}
+
+.menuButton{
+width:145px;
+font-size:15px;
+}
+
+.playButton{
+width:235px;
+font-size:22px;
+}
+
+.topStats{
+font-size:14px;
+}
+
+#multiplayerMenu{
+padding-top:15px;
+padding-bottom:50px;
+}
+
+#multiplayerMenu .playButton{
+width:min(85vw,260px);
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="game"></div>
+
+<div id="mainMenu" class="panel">
+
+<div class="topStats">
+🏆 MEJOR PUNTAJE<br>
+<span id="bestScore">0</span>
+</div>
+
+<h1 class="logo">✈️ AIR FLIGHT</h1>
+
+<div class="moneyBox">
+🪙 <span id="menuCoins">0</span>
+&nbsp;&nbsp;&nbsp;
+💎 <span id="menuGems">0</span>
+</div>
+
+<div class="menuButtons">
+
+<button class="menuButton playButton"
+onclick="startGame('normal')">
+▶️ JUGAR
+</button>
+
+<button class="menuButton"
+onclick="openMultiplayer()">
+👥 MULTIJUGADOR
+</button>
+
+<button class="menuButton"
+onclick="openShop()">
+🛒 TIENDA
+</button>
+
+<button class="menuButton"
+onclick="openMissions()">
+🎯 MISIONES
+</button>
+
+<button class="menuButton"
+onclick="openSkins()">
+✈️ AVIONES
+</button>
+
+<button class="menuButton"
+onclick="openControls()">
+🎮 CONTROLES
+</button>
+
+</div>
+
+</div>
+
+
+<!-- =====================================================
+     TIENDA
+===================================================== -->
+
+<div id="shopMenu" class="panel" style="display:none">
+
+<h1>🛒 TIENDA</h1>
+
+<div class="moneyBox">
+🪙 <span id="shopCoins">0</span>
+&nbsp;&nbsp;
+💎 <span id="shopGems">0</span>
+</div>
+
+<div class="shop">
+
+<div class="sectionTitle">
+🪙 AVIONES — MONEDAS
+</div>
+
+<div id="coinPlanes"></div>
+
+<div class="sectionTitle">
+💎 AVIONES — GEMAS
+</div>
+
+<div id="gemPlanes"></div>
+
+<div class="sectionTitle">
+💳 AVIONES PREMIUM
+</div>
+
+<div id="premiumPlanes"></div>
+
+<hr>
+
+<div class="sectionTitle">
+💎 GEMAS — DINERO REAL
+</div>
+
+<div class="item">
+<span>💎 100 gemas</span>
+<button onclick="buyGems(100)">
+💳 US$ 0.99
+</button>
+</div>
+
+<div class="item">
+<span>💎 500 gemas</span>
+<button onclick="buyGems(500)">
+💳 US$ 3.99
+</button>
+</div>
+
+<div class="item">
+<span>💎 1.500 gemas</span>
+<button onclick="buyGems(1500)">
+💳 US$ 9.99
+</button>
+</div>
+
+<hr>
+
+<div class="sectionTitle">
+🪙 MONEDAS — GEMAS
+</div>
+
+<div class="item">
+<span>🪙 1.000 monedas</span>
+<button onclick="buyCoinsWithGems(1000,10)">
+💎 10
+</button>
+</div>
+
+<div class="item">
+<span>🪙 5.000 monedas</span>
+<button onclick="buyCoinsWithGems(5000,40)">
+💎 40
+</button>
+</div>
+
+<div class="item">
+<span>🪙 15.000 monedas</span>
+<button onclick="buyCoinsWithGems(15000,100)">
+💎 100
+</button>
+</div>
+
+<div class="item">
+<span>🪙 50.000 monedas</span>
+<button onclick="buyCoinsWithGems(50000,300)">
+💎 300
+</button>
+</div>
+
+</div>
+
+<button class="smallButton"
+onclick="backMenu()">
+⬅️ VOLVER
+</button>
+
+</div>
+
+
+<!-- =====================================================
+     MISIONES
+===================================================== -->
+
+<div id="missionsMenu" class="panel" style="display:none">
+
+<h1>🎯 MISIONES</h1>
+
+<div class="shop">
+
+<div class="mission">
+✈️ Superar 50 aviones
+<div class="bar"><div id="m1bar" class="fill"></div></div>
+<p id="m1text">0 / 50</p>
+<button onclick="claimMission(1)">
+RECLAMAR 🪙 500
+</button>
+</div>
+
+<div class="mission">
+🏆 Conseguir 500 puntos
+<div class="bar"><div id="m2bar" class="fill"></div></div>
+<p id="m2text">0 / 500</p>
+<button onclick="claimMission(2)">
+RECLAMAR 🪙 2.000
+</button>
+</div>
+
+<div class="mission">
+🚀 Esquivar 20 obstáculos
+<div class="bar"><div id="m3bar" class="fill"></div></div>
+<p id="m3text">0 / 20</p>
+<button onclick="claimMission(3)">
+RECLAMAR 💎 10
+</button>
+</div>
+
+<div class="mission">
+🌎 Conseguir 1.000 puntos
+<div class="bar"><div id="m4bar" class="fill"></div></div>
+<p id="m4text">0 / 1000</p>
+<button onclick="claimMission(4)">
+RECLAMAR 💎 15
+</button>
+</div>
+
+<div class="mission">
+👑 Conseguir 2.000 puntos
+<div class="bar"><div id="m5bar" class="fill"></div></div>
+<p id="m5text">0 / 2000</p>
+<button onclick="claimMission(5)">
+RECLAMAR 💎 20
+</button>
+</div>
+
+</div>
+
+<button class="smallButton"
+onclick="backMenu()">
+⬅️ VOLVER
+</button>
+
+</div>
+
+
+<!-- =====================================================
+     AVIONES
+===================================================== -->
+
+<div id="skinsMenu" class="panel" style="display:none">
+
+<h1>✈️ AVIONES</h1>
+
+<div id="skinsList"
+class="shop"
+style="max-height:65vh;overflow:auto">
+</div>
+
+<button class="smallButton"
+onclick="backMenu()">
+⬅️ VOLVER
+</button>
+
+</div>
+
+
+<!-- =====================================================
+     MULTIJUGADOR
+===================================================== -->
+
+<div id="multiplayerMenu" class="panel" style="display:none">
+
+<h1>👥 MULTIJUGADOR</h1>
+
+
+<!-- PARTIDA AL AZAR -->
+
+<div class="multiCard">
+
+<h2>🎲 PARTIDA AL AZAR</h2>
+
+<p>
+Buscá automáticamente una sala disponible.
+</p>
+
+<button
+class="menuButton playButton"
+onclick="joinRandomRoom()">
+🎲 UNIRSE A UNA PARTIDA AL AZAR
+</button>
+
+<p
+id="randomRoomStatus"
+class="roomStatus">
+</p>
+
+</div>
+
+
+<!-- INGRESAR CÓDIGO -->
+
+<div class="multiCard">
+
+<h2>🔑 INGRESAR CÓDIGO</h2>
+
+<p>
+Escribí el código de 6 caracteres:
+</p>
+
+<input
+id="roomSearchInput"
+class="roomInput"
+type="text"
+maxlength="6"
+placeholder="ABC123"
+autocomplete="off">
+
+<button
+class="menuButton playButton"
+onclick="searchRoom()">
+🔎 BUSCAR PARTIDA
+</button>
+
+<p
+id="roomSearchStatus"
+class="roomStatus">
+</p>
+
+</div>
+
+
+<!-- SERVIDOR -->
+
+<div class="multiCard">
+
+<div>
+<span class="onlineDot"></span>
+SERVIDOR ONLINE
+</div>
+
+<p>
+🌐 AIR FLIGHT ONLINE
+</p>
+
+<button
+class="menuButton playButton"
+onclick="createRoom()">
+🏠 CREAR SALA
+</button>
+
+</div>
+
+
+<!-- SALA CREADA -->
+
+<div id="createRoomBox"
+class="multiCard"
+style="display:none">
+
+<h2>🏠 TU SALA</h2>
+
+<p>
+Compartí este código con tus amigos:
+</p>
+
+<div id="roomCode"
+class="roomCode">
+------
+</div>
+
+<button class="smallButton"
+onclick="copyRoomCode()">
+📋 COPIAR CÓDIGO
+</button>
+
+<p id="roomStatus"
+class="roomStatus">
+</p>
+
+<div id="roomPlayers"
+class="roomPlayers">
+
+<div class="roomPlayer">
+✈️ Vos
+</div>
+
+</div>
+
+<button
+id="startRoomButton"
+class="menuButton playButton"
+onclick="startRoomGame()"
+style="display:none">
+
+▶️ EMPEZAR PARTIDA
+
+</button>
+
+</div>
+
+
+<!-- JUGADOR -->
+
+<div class="multiCard">
+
+<h2>👤 JUGADOR</h2>
+
+✈️ <span id="multiPlaneName">
+Avión gris
+</span>
+
+</div>
+
+
+<button class="smallButton"
+onclick="backMenu()">
+⬅️ VOLVER
+</button>
+
+</div>
+
+
+<!-- =====================================================
+     CONTROLES
+===================================================== -->
+
+<div id="controlsMenu" class="panel" style="display:none">
+
+<h1>🎮 CONTROLES</h1>
+
+<div class="controlBox">
+
+<p>🕹️ Mueve el joystick para dirigir el avión.</p>
+
+<p>⬆️ Arriba: subir.</p>
+
+<p>⬇️ Abajo: bajar.</p>
+
+<p>⬅️➡️ Izquierda y derecha: girar.</p>
+
+<p>📱 También podés usar la inclinación.</p>
+
+<p>⚡ La velocidad aumenta con los puntos.</p>
+
+<p>🏔️ Las montañas se deben pasar por arriba.</p>
+
+<p>🚀 Esquivá los obstáculos de energía.</p>
+
+
+<!-- =====================================================
+     VELOCIDAD INICIAL
+===================================================== -->
+
+<div class="speedBoxControls">
+
+<h2>⚡ VELOCIDAD INICIAL</h2>
+
+<p>
+Elegí la velocidad con la que comenzará el avión.
+</p>
+
+<input
+id="initialSpeedInput"
+type="range"
+min="10"
+max="25"
+value="10"
+step="1"
+oninput="updateInitialSpeed()">
+
+<div class="speedNumber">
+⚡ <span id="initialSpeedValue">10</span>
+</div>
+
+</div>
+
+
+<!-- =====================================================
+     SENSIBILIDAD
+===================================================== -->
+
+<label>
+
+Sensibilidad horizontal:
+<span id="horizontalValue">
+62%
+</span>
+
+<input
+id="horizontalSensitivity"
+type="range"
+min="20"
+max="100"
+value="62"
+oninput="changeSensitivity()">
+
+</label>
+
+
+<label>
+
+Sensibilidad vertical:
+<span id="verticalValue">
+42%
+</span>
+
+<input
+id="verticalSensitivity"
+type="range"
+min="20"
+max="100"
+value="42"
+oninput="changeSensitivity()">
+
+</label>
+
+</div>
+
+
+<button class="smallButton"
+onclick="backMenu()">
+⬅️ VOLVER
+</button>
+
+</div>
+
+
+<!-- =====================================================
+     HUD
+===================================================== -->
+
+<div id="hud">
+
+<div>
+🏆 Puntos:
+<span id="score">0</span>
+</div>
+
+<div>
+⚡ Velocidad:
+<span id="speed">10</span>
+</div>
+
+<div>
+🪙 Monedas:
+<span id="coins">0</span>
+</div>
+
+<div>
+💎 Gemas:
+<span id="gems">0</span>
+</div>
+
+<div>
+🚀 Esquivados:
+<span id="missilesDodged">0</span>
+</div>
+
+<div id="abilityHud">
+
+⚡ <span id="abilityName">
+Habilidad
+</span>
+
+<div id="abilityBar">
+<div id="abilityFill"></div>
+</div>
+
+</div>
+
+</div>
+
+
+<div id="scenario">
+☁️ CIELO
+</div>
+
+
+<div id="modeHud">
+
+👥 SALA:
+<span id="hudRoomCode">
+------
+</span>
+
+<br>
+
+👤 JUGADORES:
+<span id="onlinePlayers">
+1
+</span>
+
+</div>
+
+
+<button id="sensorButton">
+📱 Activar inclinación
+</button>
+
+
+<button id="sensitivityButton"
+onclick="cycleSensitivity()">
+⚙️ Sensibilidad
+</button>
+
+
+<div id="joystick">
+<div id="stick"></div>
+</div>
+
+
+<div id="launch">
+🏁 PREPARANDO DESPEGUE...
+</div>
+
+
+<!-- GAME OVER -->
+
+<div id="gameOver" class="panel">
+
+<h1>💥 FIN DEL VUELO</h1>
+
+<p>
+Puntos:
+<span id="finalScore">0</span>
+</p>
+
+<p id="finalReward"></p>
+
+<button class="menuButton"
+onclick="restartGame()">
+🔄 JUGAR DE NUEVO
+</button>
+
+<button class="menuButton"
+onclick="backToMain()">
+🏠 MENÚ
+</button>
+
+</div>
+
+
+<script type="module">
+
+import * as THREE from
+"https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js";
+
+
+/* =====================================================
+   GUARDADO
+===================================================== */
+
+let coins =
+Number(localStorage.getItem("coins") || 0);
+
+let gems =
+Number(localStorage.getItem("gems") || 0);
+
+let bestScore =
+Number(localStorage.getItem("bestScore") || 0);
+
+let selectedPlane =
+Number(localStorage.getItem("selectedPlane") || 0);
+
+let unlockedPlanes =
+JSON.parse(
+localStorage.getItem("unlockedPlanes") ||
+"[true,false,false,false,false,false,false,false,false,false,false,false,false,false]"
+);
+
+let claimed =
+JSON.parse(
+localStorage.getItem("claimedMissions") ||
+"[false,false,false,false,false,false]"
+);
+
+let sensitivityH =
+Number(localStorage.getItem("sensitivityH") || .62);
+
+let sensitivityV =
+Number(localStorage.getItem("sensitivityV") || .42);
+
+
+/* =====================================================
+   VELOCIDAD INICIAL
+   AHORA SOLAMENTE DE 10 A 25
+===================================================== */
+
+let initialSpeed =
+Number(localStorage.getItem("initialSpeed") || 10);
+
+initialSpeed=
+THREE.MathUtils.clamp(
+initialSpeed,
+10,
+25
+);
+
+
+/* =====================================================
+   AVIONES
+===================================================== */
+
+const planes = [
+
+{
+name:"⚪ Avión gris",
+short:"Avión gris",
+color:0x777777,
+payment:"free",
+price:0,
+skill:"Equilibrado",
+speedBonus:0,
+turnBonus:1,
+coinBonus:1,
+ability:"Ninguna"
+},
+
+{
+name:"🟢 Caza militar",
+short:"Caza militar",
+color:0x536047,
+payment:"coins",
+price:1000,
+skill:"+15% velocidad",
+speedBonus:1.5,
+turnBonus:1,
+coinBonus:1,
+ability:"Turbo"
+},
+
+{
+name:"⚫ Caza negro",
+short:"Caza negro",
+color:0x191919,
+payment:"coins",
+price:2500,
+skill:"+35% maniobrabilidad",
+speedBonus:0,
+turnBonus:1.35,
+coinBonus:1,
+ability:"Giro rápido"
+},
+
+{
+name:"🔴 Caza rojo",
+short:"Caza rojo",
+color:0xb92727,
+payment:"coins",
+price:5000,
+skill:"Turbo especial",
+speedBonus:1,
+turnBonus:1.1,
+coinBonus:1,
+ability:"Turbo rojo"
+},
+
+{
+name:"🟡 Caza dorado",
+short:"Caza dorado",
+color:0xd5aa2d,
+payment:"coins",
+price:10000,
+skill:"+25% monedas",
+speedBonus:0,
+turnBonus:1,
+coinBonus:1.25,
+ability:"Imán de monedas"
+},
+
+{
+name:"🟣 Caza futurista",
+short:"Caza futurista",
+color:0x783fd0,
+payment:"coins",
+price:25000,
+skill:"Escudo de energía",
+speedBonus:2,
+turnBonus:1.15,
+coinBonus:1.1,
+ability:"Escudo"
+},
+
+{
+name:"🔵 Caza cristal",
+short:"Caza cristal",
+color:0x35bce8,
+payment:"gems",
+price:500,
+skill:"+30% gemas",
+speedBonus:0,
+turnBonus:1.1,
+coinBonus:1,
+gemBonus:1.3,
+ability:"Cristal"
+},
+
+{
+name:"🟠 Caza infernal",
+short:"Caza infernal",
+color:0xff7020,
+payment:"gems",
+price:1000,
+skill:"+25% aceleración",
+speedBonus:2,
+turnBonus:1.15,
+coinBonus:1,
+ability:"Aceleración"
+},
+
+{
+name:"🩵 Caza plasma",
+short:"Caza plasma",
+color:0x45e8ff,
+payment:"gems",
+price:2500,
+skill:"+50% giro",
+speedBonus:1,
+turnBonus:1.5,
+coinBonus:1,
+ability:"Plasma"
+},
+
+{
+name:"🌌 Caza espacial",
+short:"Caza espacial",
+color:0x3040a0,
+payment:"gems",
+price:5000,
+skill:"+30% velocidad máxima",
+speedBonus:3,
+turnBonus:1.2,
+coinBonus:1,
+ability:"Propulsor espacial"
+},
+
+{
+name:"👑 Caza imperial",
+short:"Caza imperial",
+color:0xffd447,
+payment:"gems",
+price:10000,
+skill:"Bonificación completa",
+speedBonus:3,
+turnBonus:1.35,
+coinBonus:1.25,
+gemBonus:1.2,
+ability:"Imperial"
+},
+
+{
+name:"💳 Caza titan",
+short:"Caza titan",
+color:0x8899aa,
+payment:"premium",
+price:"US$ 0.99",
+skill:"Habilidad titan",
+speedBonus:4,
+turnBonus:1.4,
+coinBonus:1.3,
+gemBonus:1.25,
+ability:"Titan"
+},
+
+{
+name:"💳 Caza eclipse",
+short:"Caza eclipse",
+color:0x101020,
+payment:"premium",
+price:"US$ 1.99",
+skill:"Máxima maniobrabilidad",
+speedBonus:3,
+turnBonus:1.7,
+coinBonus:1.35,
+gemBonus:1.3,
+ability:"Eclipse"
+},
+
+{
+name:"💳 Caza legendario",
+short:"Caza legendario",
+color:0xffeaa0,
+payment:"premium",
+price:"US$ 2.99",
+skill:"Todas las bonificaciones",
+speedBonus:5,
+turnBonus:1.55,
+coinBonus:1.5,
+gemBonus:1.5,
+ability:"Legendario"
+}
+
+];
+
+
+/* =====================================================
+   ESCENA
+===================================================== */
+
+const scene =
+new THREE.Scene();
+
+scene.background =
+new THREE.Color(0x6fb9e8);
+
+const camera =
+new THREE.PerspectiveCamera(
+65,
+innerWidth/innerHeight,
+0.1,
+3000
+);
+
+const renderer =
+new THREE.WebGLRenderer({
+antialias:true
+});
+
+renderer.setSize(
+innerWidth,
+innerHeight
+);
+
+renderer.setPixelRatio(
+Math.min(devicePixelRatio,2)
+);
+
+document
+.getElementById("game")
+.appendChild(renderer.domElement);
+
+scene.add(
+new THREE.AmbientLight(
+0xffffff,
+1.7
+)
+);
+
+const sun =
+new THREE.DirectionalLight(
+0xffffff,
+2.2
+);
+
+sun.position.set(30,60,30);
+scene.add(sun);
+
+
+/* =====================================================
+   VARIABLES
+===================================================== */
+
+let score=0;
+
+let speed=
+initialSpeed+
+planes[selectedPlane].speedBonus;
+
+let playing=false;
+let takingOff=false;
+
+let targetX=0;
+let targetY=0;
+
+let enemies=[];
+let projectiles=[];
+
+let enemyTimer=0;
+let projectilesDodged=0;
+
+let phoneRoll=0;
+let sensorEnabled=false;
+let orientationHandler=null;
+
+let gameMode="normal";
+
+const mapWidth=18;
+const minAltitude=-4.8;
+const maxAltitude=17;
+
+let mountainData=[];
+
+let abilityEnergy=100;
+let abilityActive=false;
+let abilityTimer=0;
+
+
+/* =====================================================
+   BASE
+===================================================== */
+
+function createBase(){
+
+const ground =
+new THREE.Mesh(
+new THREE.PlaneGeometry(250,500),
+new THREE.MeshStandardMaterial({
+color:0x59634c
+})
+);
+
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-7;
+scene.add(ground);
+
+const runway =
+new THREE.Mesh(
+new THREE.BoxGeometry(15,.2,180),
+new THREE.MeshStandardMaterial({
+color:0x303030
+})
+);
+
+runway.position.set(0,-6.85,0);
+scene.add(runway);
+
+for(let z=-250;z<80;z+=8){
+
+const line =
+new THREE.Mesh(
+new THREE.BoxGeometry(.35,.25,4),
+new THREE.MeshStandardMaterial({
+color:0xffffff
+})
+);
+
+line.position.set(0,-6.7,z);
+scene.add(line);
+
+}
+
+for(const x of [-18,18]){
+
+const hangar =
+new THREE.Mesh(
+new THREE.BoxGeometry(9,7,18),
+new THREE.MeshStandardMaterial({
+color:0x4d554b
+})
+);
+
+hangar.position.set(x,-3.5,-5);
+scene.add(hangar);
+
+}
+
+}
+
+createBase();
+
+
+/* =====================================================
+   MONTAÑAS
+===================================================== */
+
+function createNaturalMountain(
+x,z,width,height,seed
+){
+
+const segments=32;
+const rings=9;
+
+const vertices=[];
+const indices=[];
+
+function noise(a,b){
+
+const value=
+Math.sin(
+a*12.9898+
+b*78.233+
+seed*37.719
+)*43758.5453;
+
+return value-Math.floor(value);
+
+}
+
+for(let r=0;r<=rings;r++){
+
+const t=r/rings;
+
+let radius;
+
+if(t<.62)
+radius=width*(1-t*.82);
+else
+radius=width*(.49-(t-.62)*.27);
+
+for(let i=0;i<segments;i++){
+
+const angle=(i/segments)*Math.PI*2;
+
+const irregular=
+1+
+Math.sin(angle*3+seed)*.12+
+Math.sin(angle*7+seed*1.7)*.065+
+Math.sin(angle*13+seed*2.4)*.035;
+
+const rr=radius*irregular;
+
+let px=Math.cos(angle)*rr;
+let pz=Math.sin(angle)*rr;
+
+px+=Math.sin(angle*5+r*1.7+seed)*width*.025;
+pz+=Math.cos(angle*4+r*1.3+seed)*width*.025;
+
+let py=-7+height*t;
+
+py+=
+Math.sin(angle*3+r+seed)*
+height*.025*(1-t);
+
+if(t>.68){
+
+py+=
+Math.sin(angle*3+seed)*
+height*.055*((t-.68)/.32);
+
+py+=
+Math.sin(angle*6+seed*1.5)*
+height*.025*((t-.68)/.32);
+
+}
+
+vertices.push(
+x+px,
+py,
+z+pz
+);
+
+}
+
+}
+
+for(let r=0;r<rings;r++){
+
+for(let i=0;i<segments;i++){
+
+const next=(i+1)%segments;
+
+const a=r*segments+i;
+const b=r*segments+next;
+const c=(r+1)*segments+i;
+const d=(r+1)*segments+next;
+
+indices.push(a,b,c,b,d,c);
+
+}
+
+}
+
+const topStart=rings*segments;
+
+const topCenterIndex=vertices.length/3;
+
+vertices.push(
+x+Math.sin(seed)*width*.08,
+-7+height+Math.sin(seed*2)*height*.025,
+z+Math.cos(seed)*width*.08
+);
+
+for(let i=0;i<segments;i++){
+
+const next=(i+1)%segments;
+
+indices.push(
+topStart+i,
+topStart+next,
+topCenterIndex
+);
+
+}
+
+const geometry=new THREE.BufferGeometry();
+
+geometry.setAttribute(
+"position",
+new THREE.Float32BufferAttribute(
+vertices,3
+)
+);
+
+geometry.setIndex(indices);
+geometry.computeVertexNormals();
+
+const shade=.27+noise(seed,4)*.08;
+
+const material=
+new THREE.MeshStandardMaterial({
+color:new THREE.Color(
+shade,
+shade+.025,
+shade-.01
+),
+roughness:.96,
+metalness:0
+});
+
+return new THREE.Mesh(
+geometry,
+material
+);
+
+}
+
+function createMountainRow(z){
+
+const group=new THREE.Group();
+
+const mountains=[
+
+{x:-31,width:18,height:27,seed:11},
+{x:-14,width:21,height:35,seed:27},
+{x:5,width:19,height:30,seed:43},
+{x:24,width:22,height:37,seed:61}
+
+];
+
+for(const data of mountains){
+
+const mountain=
+createNaturalMountain(
+data.x,
+z,
+data.width,
+data.height,
+data.seed+Math.abs(z)
+);
+
+group.add(mountain);
+
+mountainData.push({
+x:data.x,
+z:z,
+width:data.width,
+height:data.height
+});
+
+}
+
+scene.add(group);
+
+}
+
+for(let z=-180;z>=-900;z-=180){
+createMountainRow(z);
+}
+
+
+/* =====================================================
+   NUBES
+===================================================== */
+
+function createCloud(){
+
+const cloud=new THREE.Group();
+
+const material=
+new THREE.MeshStandardMaterial({
+color:0xffffff
+});
+
+for(let i=0;i<6;i++){
+
+const part=
+new THREE.Mesh(
+new THREE.SphereGeometry(
+1.5+Math.random()*1.6,
+12,8
+),
+material
+);
+
+part.position.set(
+(i-2.5)*2,
+Math.random()*1.5,
+Math.random()
+);
+
+cloud.add(part);
+
+}
+
+cloud.position.set(
+(Math.random()-.5)*120,
+12+Math.random()*28,
+-40-Math.random()*900
+);
+
+scene.add(cloud);
+
+}
+
+for(let i=0;i<35;i++)
+createCloud();
+
+
+/* =====================================================
+   MODELO DEL AVIÓN
+===================================================== */
+
+function createPlane(color){
+
+const group=new THREE.Group();
+
+const metal=
+new THREE.MeshStandardMaterial({
+color:color,
+metalness:.75,
+roughness:.27
+});
+
+const dark=
+new THREE.MeshStandardMaterial({
+color:0x15191d,
+metalness:.7,
+roughness:.25
+});
+
+const glass=
+new THREE.MeshStandardMaterial({
+color:0x142b43,
+metalness:.8,
+roughness:.08
+});
+
+const body=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+.52,.65,5.1,16
+),
+metal
+);
+
+body.rotation.x=Math.PI/2;
+group.add(body);
+
+const nose=
+new THREE.Mesh(
+new THREE.ConeGeometry(
+.52,1.65,16
+),
+metal
+);
+
+nose.rotation.x=-Math.PI/2;
+nose.position.z=-3.25;
+group.add(nose);
+
+const cockpit=
+new THREE.Mesh(
+new THREE.SphereGeometry(
+.55,16,10
+),
+glass
+);
+
+cockpit.scale.set(1,.55,1.65);
+cockpit.position.set(0,.42,-.75);
+group.add(cockpit);
+
+const wing=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+6.8,.18,1.35
+),
+metal
+);
+
+group.add(wing);
+
+const wingLeft=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+1.7,.14,.8
+),
+metal
+);
+
+wingLeft.position.set(-3.1,0,-.25);
+wingLeft.rotation.y=-.18;
+group.add(wingLeft);
+
+const wingRight=wingLeft.clone();
+
+wingRight.position.x=3.1;
+wingRight.rotation.y=.18;
+group.add(wingRight);
+
+const tail=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+2.1,.12,.7
+),
+metal
+);
+
+tail.position.z=1.9;
+group.add(tail);
+
+const fin=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+.18,1.25,1
+),
+metal
+);
+
+fin.position.set(0,.63,1.8);
+group.add(fin);
+
+for(const x of [-1.35,1.35]){
+
+const engine=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+.23,.3,1.2,12
+),
+dark
+);
+
+engine.rotation.x=Math.PI/2;
+engine.position.set(x,-.08,2.1);
+group.add(engine);
+
+}
+
+return group;
+
+}
+
+let player=
+createPlane(
+planes[selectedPlane].color
+);
+
+player.position.set(0,-5.8,18);
+scene.add(player);
+
+
+/* =====================================================
+   ENEMIGOS
+===================================================== */
+
+function createEnemyPlane(type){
+
+const colors=[
+0x4d5940,
+0x243c64,
+0x6b2020,
+0x46345c
+];
+
+const group=new THREE.Group();
+
+const metal=
+new THREE.MeshStandardMaterial({
+color:colors[type],
+metalness:.72,
+roughness:.3
+});
+
+const glass=
+new THREE.MeshStandardMaterial({
+color:0x111e2b,
+metalness:.8,
+roughness:.1
+});
+
+const body=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+.48,.6,4.7,14
+),
+metal
+);
+
+body.rotation.x=Math.PI/2;
+group.add(body);
+
+const nose=
+new THREE.Mesh(
+new THREE.ConeGeometry(
+.48,1.55,14
+),
+metal
+);
+
+nose.rotation.x=Math.PI/2;
+nose.position.z=3;
+group.add(nose);
+
+const cockpit=
+new THREE.Mesh(
+new THREE.SphereGeometry(
+.48,14,8
+),
+glass
+);
+
+cockpit.scale.set(1,.5,1.4);
+cockpit.position.set(0,.38,.8);
+group.add(cockpit);
+
+const wings=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+6,.18,1.2
+),
+metal
+);
+
+group.add(wings);
+
+const tail=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+2,.12,.65
+),
+metal
+);
+
+tail.position.z=-1.8;
+group.add(tail);
+
+return group;
+
+}
+
+function spawnEnemy(){
+
+const type=Math.floor(Math.random()*4);
+
+const enemy=
+createEnemyPlane(type);
+
+enemy.position.set(
+(Math.random()-.5)*30,
+THREE.MathUtils.randFloat(0,11),
+player.position.z-80-Math.random()*45
+);
+
+enemy.userData.passed=false;
+enemy.userData.nextProjectile=
+3+Math.random()*2.5;
+
+scene.add(enemy);
+enemies.push(enemy);
+
+}
+
+
+/* =====================================================
+   MISIL
+===================================================== */
+
+function createEnergyProjectile(){
+
+const group=new THREE.Group();
+
+const bodyMaterial=
+new THREE.MeshStandardMaterial({
+color:0x4b5258,
+metalness:.75,
+roughness:.28
+});
+
+const darkMaterial=
+new THREE.MeshStandardMaterial({
+color:0x171a1d,
+metalness:.7,
+roughness:.25
+});
+
+const redMaterial=
+new THREE.MeshStandardMaterial({
+color:0xc62828,
+metalness:.45,
+roughness:.3
+});
+
+const body=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+.22,.28,1.45,12
+),
+bodyMaterial
+);
+
+body.rotation.x=Math.PI/2;
+group.add(body);
+
+const nose=
+new THREE.Mesh(
+new THREE.ConeGeometry(
+.27,.65,12
+),
+bodyMaterial
+);
+
+nose.rotation.x=-Math.PI/2;
+nose.position.z=-1.05;
+group.add(nose);
+
+const finGeometry=
+new THREE.BoxGeometry(
+.08,.42,.42
+);
+
+const finLeft=
+new THREE.Mesh(
+finGeometry,
+darkMaterial
+);
+
+finLeft.position.set(
+-.30,0,.55
+);
+
+finLeft.rotation.z=-.25;
+group.add(finLeft);
+
+const finRight=finLeft.clone();
+
+finRight.position.x=.30;
+finRight.rotation.z=.25;
+group.add(finRight);
+
+const finTop=
+new THREE.Mesh(
+new THREE.BoxGeometry(
+.42,.08,.42
+),
+darkMaterial
+);
+
+finTop.position.set(
+0,.30,.55
+);
+
+finTop.rotation.x=.25;
+group.add(finTop);
+
+const rear=
+new THREE.Mesh(
+new THREE.CylinderGeometry(
+.24,.24,.18,12
+),
+redMaterial
+);
+
+rear.rotation.x=Math.PI/2;
+rear.position.z=.78;
+group.add(rear);
+
+const flameMaterial=
+new THREE.MeshStandardMaterial({
+color:0xff6b00,
+emissive:0xff2200,
+emissiveIntensity:2
+});
+
+const flame=
+new THREE.Mesh(
+new THREE.ConeGeometry(
+.18,.65,10
+),
+flameMaterial
+);
+
+flame.rotation.x=Math.PI/2;
+flame.position.z=1.15;
+group.add(flame);
+
+const light=
+new THREE.PointLight(
+0xff3300,
+1.5,
+5
+);
+
+light.position.z=1;
+group.add(light);
+
+return group;
+}
+
+function fireProjectile(enemy){
+
+const projectile=
+createEnergyProjectile();
+
+projectile.position.copy(
+enemy.position
+);
+
+const direction=
+new THREE.Vector3()
+.subVectors(
+player.position,
+enemy.position
+)
+.normalize();
+
+const projectileSpeed=
+Math.max(
+18,
+speed*1.5
+);
+
+projectile.userData.velocity=
+direction.clone()
+.multiplyScalar(projectileSpeed);
+
+projectile.userData.life=0;
+
+const forward=
+new THREE.Vector3(0,0,-1);
+
+projectile.quaternion.setFromUnitVectors(
+forward,
+direction
+);
+
+scene.add(projectile);
+projectiles.push(projectile);
+
+}
+
+
+/* =====================================================
+   HABILIDADES
+===================================================== */
+
+function activateAbility(){
+
+const plane=planes[selectedPlane];
+
+if(abilityActive)
+return;
+
+if(abilityEnergy<100)
+return;
+
+abilityActive=true;
+abilityEnergy=0;
+
+if(
+plane.ability==="Escudo"||
+plane.ability==="Imperial"||
+plane.ability==="Titan"||
+plane.ability==="Legendario"
+){
+
+abilityTimer=6;
+
+}
+else{
+
+abilityTimer=4;
+
+}
+
+}
+
+function updateAbility(delta){
+
+if(!playing)
+return;
+
+const plane=planes[selectedPlane];
+
+if(abilityActive){
+
+abilityTimer-=delta;
+
+if(abilityTimer<=0)
+abilityActive=false;
+
+}
+else{
+
+let recharge=.08;
+
+if(
+plane.ability==="Cristal"||
+plane.ability==="Plasma"
+)
+recharge=.12;
+
+abilityEnergy=
+Math.min(
+100,
+abilityEnergy+recharge
+);
+
+}
+
+document.getElementById(
+"abilityFill"
+).style.width=
+abilityEnergy+"%";
+
+}
+
+function abilityCanProtect(){
+
+return(
+abilityActive&&
+(
+planes[selectedPlane].ability==="Escudo"||
+planes[selectedPlane].ability==="Imperial"||
+planes[selectedPlane].ability==="Titan"||
+planes[selectedPlane].ability==="Legendario"
+)
+);
+
+}
+
+
+/* =====================================================
+   PUNTOS
+===================================================== */
+
+function addPoint(){
+
+score++;
+
+const plane=planes[selectedPlane];
+
+speed=
+initialSpeed+
+plane.speedBonus+
+Math.min(
+20,
+Math.floor(score/20)
+);
+
+if(score>bestScore){
+
+bestScore=score;
+
+localStorage.setItem(
+"bestScore",
+bestScore
+);
+
+}
+
+document.getElementById("score").textContent=score;
+document.getElementById("speed").textContent=Math.floor(speed);
+
+updateMissions();
+updateScenario();
+
+if(
+plane.coinBonus>1&&
+Math.random()<.08
+){
+
+coins++;
+saveCurrency();
+updateMoney();
+
+}
+
+if(
+plane.gemBonus>1&&
+Math.random()<.025*plane.gemBonus
+){
+
+gems++;
+saveCurrency();
+updateMoney();
+
+}
+
+}
+
+
+/* =====================================================
+   ESQUIVAS
+===================================================== */
+
+function projectileDodgedPoint(){
+
+projectilesDodged++;
+
+score+=5;
+
+speed=
+initialSpeed+
+planes[selectedPlane].speedBonus+
+Math.min(
+20,
+Math.floor(score/20)
+);
+
+document.getElementById("score").textContent=score;
+document.getElementById("missilesDodged").textContent=projectilesDodged;
+document.getElementById("speed").textContent=Math.floor(speed);
+
+updateMissions();
+
+}
+
+
+/* =====================================================
+   COLISIONES
+===================================================== */
+
+function planeCollision(enemy){
+
+const dx=player.position.x-enemy.position.x;
+const dy=player.position.y-enemy.position.y;
+const dz=player.position.z-enemy.position.z;
+
+return(
+Math.sqrt(dx*dx+dy*dy+dz*dz)<2.7
+);
+
+}
+
+function projectileCollision(projectile){
+
+    const dx =
+        player.position.x -
+        projectile.position.x;
+
+    const dy =
+        player.position.y -
+        projectile.position.y;
+
+    const dz =
+        player.position.z -
+        projectile.position.z;
+
+    const hitDistance = 2.2;
+
+    return (
+        dx * dx +
+        dy * dy +
+        dz * dz
+    ) < hitDistance * hitDistance;
+}
+
+
+/* =====================================================
+   MONTAÑAS
+===================================================== */
+
+function keepAboveMountains(){
+
+for(const mountain of mountainData){
+
+const dz=
+Math.abs(
+player.position.z-mountain.z
+);
+
+if(dz>mountain.width*.9)
+continue;
+
+const dx=
+Math.abs(
+player.position.x-mountain.x
+);
+
+if(dx>mountain.width)
+continue;
+
+const factor=
+Math.max(
+0,
+1-(dx/mountain.width)
+);
+
+const mountainTop=
+-7+
+mountain.height*factor;
+
+const safeHeight=
+mountainTop+2.5;
+
+if(player.position.y<safeHeight){
+
+player.position.y=safeHeight;
+
+if(targetY<safeHeight)
+targetY=safeHeight;
+
+}
+
+}
+
+}
+
+
+/* =====================================================
+   ESCENARIOS
+===================================================== */
+
+function updateScenario(){
+
+const s=
+document.getElementById("scenario");
+
+if(score>=500){
+
+s.textContent="🌌 ESPACIO EXTERIOR";
+scene.background=new THREE.Color(0x02030d);
+
+}
+else if(score>=400){
+
+s.textContent="🌊 OCÉANO";
+scene.background=new THREE.Color(0x168cc4);
+
+}
+else if(score>=200){
+
+s.textContent="🏜️ DESIERTO";
+scene.background=new THREE.Color(0xd39b4c);
+
+}
+else if(score>=100){
+
+s.textContent="🌴 AMAZONAS";
+scene.background=new THREE.Color(0x25884b);
+
+}
+else{
+
+s.textContent="☁️ CIELO";
+scene.background=new THREE.Color(0x6fb9e8);
+
+}
+
+}
+
+
+/* =====================================================
+   MENÚS
+===================================================== */
+
+function showGameControls(){
+
+document.getElementById("hud").style.display="block";
+document.getElementById("scenario").style.display="block";
+document.getElementById("joystick").style.display="block";
+document.getElementById("sensorButton").style.display="block";
+document.getElementById("sensitivityButton").style.display="block";
+
+if(gameMode==="multiplayer")
+document.getElementById("modeHud").style.display="block";
+
+}
+
+function hideGameControls(){
+
+document.getElementById("hud").style.display="none";
+document.getElementById("scenario").style.display="none";
+document.getElementById("joystick").style.display="none";
+document.getElementById("sensorButton").style.display="none";
+document.getElementById("sensitivityButton").style.display="none";
+document.getElementById("modeHud").style.display="none";
+
+}
+
+function hideMenus(){
+
+for(const id of[
+"mainMenu",
+"shopMenu",
+"missionsMenu",
+"skinsMenu",
+"controlsMenu",
+"multiplayerMenu"
+]){
+
+document.getElementById(id).style.display="none";
+
+}
+
+}
+
+window.backMenu=function(){
+
+playing=false;
+takingOff=false;
+
+hideGameControls();
+hideMenus();
+
+document.getElementById(
+"mainMenu"
+).style.display="flex";
+
+updateMoney();
+
+};
+
+window.openShop=function(){
+
+hideMenus();
+
+document.getElementById(
+"shopMenu"
+).style.display="flex";
+
+updateShop();
+
+};
+
+window.openMissions=function(){
+
+hideMenus();
+
+document.getElementById(
+"missionsMenu"
+).style.display="flex";
+
+updateMissions();
+
+};
+
+window.openSkins=function(){
+
+hideMenus();
+
+document.getElementById(
+"skinsMenu"
+).style.display="flex";
+
+updateSkins();
+
+};
+
+window.openControls=function(){
+
+hideMenus();
+
+document.getElementById(
+"controlsMenu"
+).style.display="flex";
+
+updateSensitivityUI();
+updateInitialSpeedUI();
+
+};
+
+window.openMultiplayer=function(){
+
+hideMenus();
+
+document.getElementById(
+"multiplayerMenu"
+).style.display="flex";
+
+document.getElementById(
+"multiPlaneName"
+).textContent=
+planes[selectedPlane].short;
+
+};
+
+
+/* =====================================================
+   DINERO
+===================================================== */
+
+function saveCurrency(){
+
+localStorage.setItem("coins",coins);
+localStorage.setItem("gems",gems);
+
+}
+
+function updateMoney(){
+
+document.getElementById("coins").textContent=coins;
+document.getElementById("gems").textContent=gems;
+
+document.getElementById("menuCoins").textContent=coins;
+document.getElementById("menuGems").textContent=gems;
+
+document.getElementById("shopCoins").textContent=coins;
+document.getElementById("shopGems").textContent=gems;
+
+document.getElementById("bestScore").textContent=bestScore;
+
+}
+
+
+/* =====================================================
+   TIENDA
+===================================================== */
+
+function updateShop(){
+
+const coinBox=
+document.getElementById("coinPlanes");
+
+const gemBox=
+document.getElementById("gemPlanes");
+
+const premiumBox=
+document.getElementById("premiumPlanes");
+
+coinBox.innerHTML="";
+gemBox.innerHTML="";
+premiumBox.innerHTML="";
+
+planes.forEach((plane,index)=>{
+
+if(plane.payment==="free")
+return;
+
+const item=
+document.createElement("div");
+
+item.className="item";
+
+const text=
+document.createElement("span");
+
+text.innerHTML=
+plane.name+
+"<small>"+
+plane.skill+
+"</small>";
+
+const button=
+document.createElement("button");
+
+if(unlockedPlanes[index]){
+
+button.textContent=
+selectedPlane===index?
+"✅ USANDO":
+"✈️ USAR";
+
+button.onclick=()=>{
+selectPlane(index);
+};
+
+}
+else if(plane.payment==="premium"){
+
+button.textContent=
+"💳 "+plane.price;
+
+button.onclick=()=>{
+buyPremiumPlane(index);
+};
+
+}
+else{
+
+button.textContent=
+plane.payment==="coins"
+?
+"🪙 "+plane.price.toLocaleString()
+:
+"💎 "+plane.price.toLocaleString();
+
+button.onclick=()=>{
+buyPlane(index);
+};
+
+}
+
+item.appendChild(text);
+item.appendChild(button);
+
+if(plane.payment==="coins")
+coinBox.appendChild(item);
+
+if(plane.payment==="gems")
+gemBox.appendChild(item);
+
+if(plane.payment==="premium")
+premiumBox.appendChild(item);
+
+});
+
+}
+
+
+/* =====================================================
+   COMPRAR AVIONES
+===================================================== */
+
+window.buyPlane=function(index){
+
+const plane=planes[index];
+
+if(unlockedPlanes[index]){
+
+selectPlane(index);
+return;
+
+}
+
+if(plane.payment==="coins"){
+
+if(coins<plane.price){
+
+alert(
+"Necesitás "+
+plane.price.toLocaleString()+
+" monedas."
+);
+
+return;
+
+}
+
+coins-=plane.price;
+
+}
+
+else if(plane.payment==="gems"){
+
+if(gems<plane.price){
+
+alert(
+"Necesitás "+
+plane.price.toLocaleString()+
+" gemas."
+);
+
+return;
+
+}
+
+gems-=plane.price;
+
+}
+
+unlockedPlanes[index]=true;
+
+localStorage.setItem(
+"unlockedPlanes",
+JSON.stringify(unlockedPlanes)
+);
+
+saveCurrency();
+updateMoney();
+selectPlane(index);
+
+};
+
+window.buyPremiumPlane=function(index){
+
+alert(
+"💳 "+planes[index].name+
+"\n\nPrecio: "+
+planes[index].price+
+"\n\n"+
+"Esta versión mantiene el precio mostrado como compra premium de demostración.\n"+
+"No realiza cobros reales."
+);
+
+};
+
+
+/* =====================================================
+   SELECCIONAR AVIÓN
+===================================================== */
+
+window.selectPlane=function(index){
+
+if(!unlockedPlanes[index]){
+
+alert(
+"Primero tenés que desbloquear este avión."
+);
+
+return;
+
+}
+
+selectedPlane=index;
+
+localStorage.setItem(
+"selectedPlane",
+index
+);
+
+scene.remove(player);
+
+player=
+createPlane(
+planes[selectedPlane].color
+);
+
+player.position.set(
+0,-5.8,18
+);
+
+scene.add(player);
+
+document.getElementById(
+"abilityName"
+).textContent=
+planes[selectedPlane].ability;
+
+updateSkins();
+updateShop();
+
+};
+
+
+/* =====================================================
+   SKINS
+===================================================== */
+
+function updateSkins(){
+
+const list=
+document.getElementById("skinsList");
+
+list.innerHTML="";
+
+planes.forEach((plane,i)=>{
+
+const div=
+document.createElement("div");
+
+div.className="skin";
+
+const info=
+document.createElement("span");
+
+info.innerHTML=
+plane.name+
+'<span class="skill">'+
+plane.skill+
+"</span>";
+
+const button=
+document.createElement("button");
+
+if(unlockedPlanes[i]){
+
+if(selectedPlane===i){
+
+button.textContent="✅";
+
+}
+else{
+
+button.textContent="✈️";
+
+button.onclick=()=>{
+selectPlane(i);
+};
+
+}
+
+}
+else if(plane.payment==="premium"){
+
+button.textContent="💳";
+
+button.onclick=()=>{
+openShop();
+};
+
+}
+else{
+
+button.textContent=
+plane.payment==="coins"?
+"🪙":
+"💎";
+
+button.onclick=()=>{
+openShop();
+};
+
+}
+
+div.appendChild(info);
+div.appendChild(button);
+
+list.appendChild(div);
+
+});
+
+}
+
+
+/* =====================================================
+   GEMAS
+===================================================== */
+
+window.buyGems=function(amount){
+
+const prices={
+100:"US$ 0.99",
+500:"US$ 3.99",
+1500:"US$ 9.99"
+};
+
+alert(
+"💎 Paquete de "+
+amount.toLocaleString()+
+" gemas\n\n"+
+"Precio: "+
+(prices[amount] || "PREMIUM")+
+"\n\n"+
+"Compra de demostración: no realiza un cobro real."
+);
+
+};
+
+
+/* =====================================================
+   MONEDAS CON GEMAS
+===================================================== */
+
+window.buyCoinsWithGems=function(amount,cost){
+
+if(gems<cost){
+
+alert(
+"Necesitás "+
+cost+
+" 💎 para comprar "+
+amount.toLocaleString()+
+" 🪙."
+);
+
+return;
+
+}
+
+gems-=cost;
+coins+=amount;
+
+saveCurrency();
+updateMoney();
+updateShop();
+
+alert(
+"🎉 Compra realizada\n\n"+
+"+"+amount.toLocaleString()+" 🪙"
+);
+
+};
+
+
+/* =====================================================
+   MISIONES
+===================================================== */
+
+function missionValue(id){
+
+if(id===1)
+return Math.min(score,50);
+
+if(id===2)
+return Math.min(score,500);
+
+if(id===3)
+return Math.min(projectilesDodged,20);
+
+if(id===4)
+return Math.min(score,1000);
+
+if(id===5)
+return Math.min(score,2000);
+
+return 0;
+
+}
+
+function missionGoal(id){
+
+return[
+0,
+50,
+500,
+20,
+1000,
+2000
+][id];
+
+}
+
+function updateMissions(){
+
+for(let i=1;i<=5;i++){
+
+const value=missionValue(i);
+const goal=missionGoal(i);
+
+const percent=
+Math.min(
+100,
+value/goal*100
+);
+
+const bar=
+document.getElementById(
+"m"+i+"bar"
+);
+
+const text=
+document.getElementById(
+"m"+i+"text"
+);
+
+if(bar)
+bar.style.width=percent+"%";
+
+if(text)
+text.textContent=
+value+" / "+goal;
+
+}
+
+}
+
+window.claimMission=function(id){
+
+if(claimed[id]){
+
+alert(
+"Esta misión ya fue reclamada."
+);
+
+return;
+
+}
+
+if(
+missionValue(id)<
+missionGoal(id)
+){
+
+alert(
+"Todavía no completaste la misión."
+);
+
+return;
+
+}
+
+if(id===1)
+coins+=500;
+
+if(id===2)
+coins+=2000;
+
+if(id===3)
+gems+=10;
+
+if(id===4)
+gems+=15;
+
+if(id===5)
+gems+=20;
+
+claimed[id]=true;
+
+localStorage.setItem(
+"claimedMissions",
+JSON.stringify(claimed)
+);
+
+saveCurrency();
+updateMoney();
+
+alert("🎉 ¡Misión completada!");
+
+};
+
+
+/* =====================================================
+   SENSIBILIDAD
+===================================================== */
+
+function updateSensitivityUI(){
+
+const h=
+document.getElementById(
+"horizontalSensitivity"
+);
+
+const v=
+document.getElementById(
+"verticalSensitivity"
+);
+
+h.value=
+Math.round(sensitivityH*100);
+
+v.value=
+Math.round(sensitivityV*100);
+
+document.getElementById(
+"horizontalValue"
+).textContent=
+Math.round(sensitivityH*100)+"%";
+
+document.getElementById(
+"verticalValue"
+).textContent=
+Math.round(sensitivityV*100)+"%";
+
+}
+
+window.changeSensitivity=function(){
+
+sensitivityH=
+Number(
+document.getElementById(
+"horizontalSensitivity"
+).value
+)/100;
+
+sensitivityV=
+Number(
+document.getElementById(
+"verticalSensitivity"
+).value
+)/100;
+
+localStorage.setItem(
+"sensitivityH",
+sensitivityH
+);
+
+localStorage.setItem(
+"sensitivityV",
+sensitivityV
+);
+
+updateSensitivityUI();
+
+};
+
+window.cycleSensitivity=function(){
+
+if(sensitivityH<.45){
+
+sensitivityH=.62;
+sensitivityV=.42;
+
+}
+else if(sensitivityH<.75){
+
+sensitivityH=.85;
+sensitivityV=.65;
+
+}
+else{
+
+sensitivityH=.35;
+sensitivityV=.28;
+
+}
+
+localStorage.setItem(
+"sensitivityH",
+sensitivityH
+);
+
+localStorage.setItem(
+"sensitivityV",
+sensitivityV
+);
+
+updateSensitivityUI();
+
+};
+
+
+/* =====================================================
+   VELOCIDAD INICIAL
+===================================================== */
+
+window.updateInitialSpeed=function(){
+
+const input=
+document.getElementById(
+"initialSpeedInput"
+);
+
+initialSpeed=
+Number(input.value);
+
+initialSpeed=
+THREE.MathUtils.clamp(
+initialSpeed,
+10,
+25
+);
+
+document.getElementById(
+"initialSpeedValue"
+).textContent=
+initialSpeed;
+
+localStorage.setItem(
+"initialSpeed",
+initialSpeed
+);
+
+};
+
+
+function updateInitialSpeedUI(){
+
+const input=
+document.getElementById(
+"initialSpeedInput"
+);
+
+if(!input)
+return;
+
+initialSpeed=
+THREE.MathUtils.clamp(
+initialSpeed,
+10,
+25
+);
+
+input.value=
+initialSpeed;
+
+document.getElementById(
+"initialSpeedValue"
+).textContent=
+initialSpeed;
+
+}
+
+
+/* =====================================================
+   GAME OVER
+===================================================== */
+
+function endGame(){
+
+if(!playing)
+return;
+
+playing=false;
+takingOff=false;
+
+hideGameControls();
+
+let rewardCoins=
+Math.floor(score/10);
+
+const plane=
+planes[selectedPlane];
+
+rewardCoins=
+Math.floor(
+rewardCoins*
+plane.coinBonus
+);
+
+coins+=rewardCoins;
+
+let rewardGems=0;
+
+if(
+plane.gemBonus&&
+score>=100
+){
+
+rewardGems=
+Math.floor(
+score/100*
+plane.gemBonus
+);
+
+gems+=rewardGems;
+
+}
+
+saveCurrency();
+updateMoney();
+
+document.getElementById(
+"finalScore"
+).textContent=score;
+
+document.getElementById(
+"finalReward"
+).textContent=
+"🎁 Recompensa: +"+
+rewardCoins+
+" 🪙"+
+(
+rewardGems>0?
+"  +"+rewardGems+" 💎":
+""
+);
+
+document.getElementById(
+"gameOver"
+).style.display="flex";
+
+};
+
+
+/* =====================================================
+   MENÚ PRINCIPAL
+===================================================== */
+
+window.backToMain=function(){
+
+playing=false;
+takingOff=false;
+
+hideGameControls();
+
+document.getElementById(
+"gameOver"
+).style.display="none";
+
+hideMenus();
+
+document.getElementById(
+"mainMenu"
+).style.display="flex";
+
+updateMoney();
+
+};
+
+
+/* =====================================================
+   MULTIJUGADOR REAL
+===================================================== */
+
+const SERVER_URL=
+"https://air-flight-server-1.onrender.com";
+
+let multiplayerSocket=null;
+let multiplayerConnected=false;
+let multiplayerId=null;
+
+let currentRoomCode=null;
+let isRoomHost=false;
+
+const remotePlayers=
+new Map();
+
+
+/* =====================================================
+   CONEXIÓN
+===================================================== */
+
+function connectMultiplayer(){
+
+if(
+multiplayerSocket &&
+(
+multiplayerSocket.readyState===
+WebSocket.OPEN ||
+multiplayerSocket.readyState===
+WebSocket.CONNECTING
+)
+)
+return;
+
+try{
+
+multiplayerSocket=
+new WebSocket(SERVER_URL);
+
+multiplayerSocket.onopen=function(){
+
+multiplayerConnected=true;
+
+console.log(
+"🌐 AIR FLIGHT: conectado al servidor"
+);
+
+};
+
+multiplayerSocket.onmessage=
+function(event){
+
+let data;
+
+try{
+data=JSON.parse(event.data);
+}
+catch{
+return;
+}
+
+handleMultiplayerMessage(data);
+
+};
+
+multiplayerSocket.onclose=function(){
+
+multiplayerConnected=false;
+
+console.log(
+"🔴 AIR FLIGHT: conexión cerrada"
+);
+
+};
+
+multiplayerSocket.onerror=
+function(error){
+
+multiplayerConnected=false;
+
+console.log(
+"🔴 AIR FLIGHT: error WebSocket",
+error
+);
+
+};
+
+}
+catch(error){
+
+console.log(error);
+
+}
+
+}
+
+
+/* =====================================================
+   ENVIAR
+===================================================== */
+
+function sendMultiplayer(data){
+
+if(
+!multiplayerSocket ||
+multiplayerSocket.readyState!==WebSocket.OPEN
+)
+return false;
+
+try{
+
+multiplayerSocket.send(
+JSON.stringify(data)
+);
+
+return true;
+
+}
+catch{
+
+return false;
+
+}
+
+}
+
+
+/* =====================================================
+   CREAR SALA
+===================================================== */
+
+window.createRoom=function(){
+
+connectMultiplayer();
+
+if(
+!multiplayerSocket ||
+multiplayerSocket.readyState!==WebSocket.OPEN
+){
+
+document.getElementById(
+"roomStatus"
+).textContent=
+"🟡 Conectando al servidor...";
+
+return;
+
+}
+
+isRoomHost=true;
+
+document.getElementById(
+"createRoomBox"
+).style.display="block";
+
+document.getElementById(
+"roomStatus"
+).textContent=
+"🟡 Creando sala...";
+
+sendMultiplayer({
+
+type:"createRoom",
+
+plane:selectedPlane
+
+});
+
+};
+
+
+/* =====================================================
+   SALA CREADA
+===================================================== */
+
+function roomCreated(code){
+
+currentRoomCode=
+String(code).toUpperCase();
+
+document.getElementById(
+"createRoomBox"
+).style.display="block";
+
+document.getElementById(
+"roomCode"
+).textContent=
+currentRoomCode;
+
+document.getElementById(
+"roomStatus"
+).textContent=
+"🟢 Sala creada. Esperando jugadores...";
+
+document.getElementById(
+"hudRoomCode"
+).textContent=
+currentRoomCode;
+
+document.getElementById(
+"startRoomButton"
+).style.display=
+"block";
+
+updateRoomPlayers([]);
+
+}
+
+
+/* =====================================================
+   INGRESAR POR CÓDIGO
+===================================================== */
+
+window.searchRoom=function(){
+
+const input=
+document.getElementById(
+"roomSearchInput"
+);
+
+const code=
+input.value
+.trim()
+.toUpperCase();
+
+const status=
+document.getElementById(
+"roomSearchStatus"
+);
+
+if(code.length!==6){
+
+status.textContent=
+"❌ El código debe tener 6 caracteres.";
+
+return;
+
+}
+
+currentRoomCode=code;
+isRoomHost=false;
+
+status.textContent=
+"🟡 Buscando sala "+
+code+"...";
+
+if(
+!multiplayerSocket ||
+multiplayerSocket.readyState!==WebSocket.OPEN
+){
+
+connectMultiplayer();
+
+setTimeout(
+()=>{
+joinRoomSend();
+},
+700
+);
+
+return;
+
+}
+
+joinRoomSend();
+
+};
+
+
+function joinRoomSend(){
+
+if(!currentRoomCode)
+return;
+
+const ok=
+sendMultiplayer({
+
+type:"joinRoom",
+
+room:currentRoomCode,
+
+plane:selectedPlane
+
+});
+
+if(ok){
+
+document.getElementById(
+"roomSearchStatus"
+).textContent=
+"🟡 Buscando sala "+
+currentRoomCode+"...";
+
+}
+
+}
+
+
+/* =====================================================
+   PARTIDA AL AZAR
+===================================================== */
+
+window.joinRandomRoom=function(){
+
+const status=
+document.getElementById(
+"randomRoomStatus"
+);
+
+status.textContent=
+"🟡 Buscando una partida disponible...";
+
+isRoomHost=false;
+
+if(
+!multiplayerSocket ||
+multiplayerSocket.readyState!==WebSocket.OPEN
+){
+
+connectMultiplayer();
+
+setTimeout(
+()=>{
+sendRandomRoomRequest();
+},
+700
+);
+
+return;
+
+}
+
+sendRandomRoomRequest();
+
+};
+
+
+function sendRandomRoomRequest(){
+
+const status=
+document.getElementById(
+"randomRoomStatus"
+);
+
+const ok=
+sendMultiplayer({
+
+type:"findRandomRoom",
+
+plane:selectedPlane
+
+});
+
+if(ok){
+
+status.textContent=
+"🟡 Buscando una partida disponible...";
+
+}
+
+else{
+
+status.textContent=
+"❌ No se pudo conectar al servidor.";
+
+}
+
+}
+
+
+/* =====================================================
+   COPIAR
+===================================================== */
+
+window.copyRoomCode=function(){
+
+if(!currentRoomCode)
+return;
+
+if(
+navigator.clipboard &&
+navigator.clipboard.writeText
+){
+
+navigator.clipboard.writeText(
+currentRoomCode
+)
+.then(
+()=>{
+alert(
+"📋 Código copiado: "+
+currentRoomCode
+);
+}
+)
+.catch(
+()=>{
+alert(
+"📋 Código: "+
+currentRoomCode
+);
+}
+);
+
+}
+else{
+
+alert(
+"📋 Código: "+
+currentRoomCode
+);
+
+}
+
+};
+
+
+/* =====================================================
+   JUGAR SALA
+===================================================== */
+
+window.startRoomGame=function(){
+
+if(!currentRoomCode){
+
+alert(
+"Primero creá una sala."
+);
+
+return;
+
+}
+
+sendMultiplayer({
+
+type:"startRoom",
+
+room:currentRoomCode
+
+});
+
+startGame("multiplayer");
+
+};
+
+
+/* =====================================================
+   MENSAJES
+===================================================== */
+
+function handleMultiplayerMessage(data){
+
+if(data.type==="welcome"){
+
+multiplayerId=data.id;
+
+return;
+
+}
+
+if(data.type==="roomCreated"){
+
+roomCreated(
+data.room ||
+data.code ||
+data.roomCode
+);
+
+return;
+
+}
+
+
+/* =====================================================
+   SALA ENCONTRADA AL AZAR
+===================================================== */
+
+if(
+data.type==="randomRoom" ||
+data.type==="randomRoomFound"
+){
+
+const code=
+data.room ||
+data.code ||
+data.roomCode;
+
+if(code){
+
+currentRoomCode=
+String(code).toUpperCase();
+
+isRoomHost=false;
+
+document.getElementById(
+"randomRoomStatus"
+).textContent=
+"🟢 ¡Partida encontrada!";
+
+document.getElementById(
+"hudRoomCode"
+).textContent=
+currentRoomCode;
+
+sendMultiplayer({
+
+type:"joinRoom",
+
+room:currentRoomCode,
+
+plane:selectedPlane
+
+});
+
+}
+
+return;
+
+}
+
+
+/* =====================================================
+   ERROR
+===================================================== */
+
+if(
+data.type==="error" ||
+data.type==="roomError"
+){
+
+const message=
+data.message ||
+data.error ||
+"No se pudo realizar la operación.";
+
+const createStatus=
+document.getElementById(
+"roomStatus"
+);
+
+const joinStatus=
+document.getElementById(
+"roomSearchStatus"
+);
+
+const randomStatus=
+document.getElementById(
+"randomRoomStatus"
+);
+
+if(
+document.getElementById(
+"createRoomBox"
+).style.display!=="none"
+){
+
+createStatus.textContent=
+"❌ "+message;
+
+}
+else if(
+randomStatus.textContent.includes("Buscando")
+){
+
+randomStatus.textContent=
+"❌ "+message;
+
+}
+else{
+
+joinStatus.textContent=
+"❌ "+message;
+
+}
+
+return;
+
+}
+
+
+/* =====================================================
+   SALA UNIDA
+===================================================== */
+
+if(data.type==="roomJoined"){
+
+currentRoomCode=
+String(
+data.room ||
+data.code ||
+data.roomCode ||
+currentRoomCode
+).toUpperCase();
+
+document.getElementById(
+"roomSearchStatus"
+).textContent=
+"🟢 ¡Te uniste a la sala!";
+
+document.getElementById(
+"randomRoomStatus"
+).textContent=
+"🟢 ¡Te uniste a la partida!";
+
+document.getElementById(
+"hudRoomCode"
+).textContent=
+currentRoomCode;
+
+if(data.players)
+updateRoomPlayers(data.players);
+
+return;
+
+}
+
+
+/* =====================================================
+   JUGADORES
+===================================================== */
+
+if(data.type==="players"){
+
+const players=
+data.players || [];
+
+updateRoomPlayers(players);
+
+const existing=
+new Set();
+
+for(const remote of players){
+
+if(remote.id===multiplayerId)
+continue;
+
+existing.add(remote.id);
+
+let mesh=
+remotePlayers.get(remote.id);
+
+if(!mesh){
+
+const planeIndex=
+Number.isInteger(remote.plane)
+?
+remote.plane
+:
+0;
+
+const safeIndex=
+Math.max(
+0,
+Math.min(
+planes.length-1,
+planeIndex
+)
+);
+
+mesh=
+createPlane(
+planes[safeIndex].color
+);
+
+scene.add(mesh);
+
+remotePlayers.set(
+remote.id,
+mesh
+);
+
+}
+
+mesh.position.set(
+Number(remote.x)||0,
+Number(remote.y)||0,
+Number(remote.z)||0
+);
+
+mesh.rotation.set(
+Number(remote.rx)||0,
+Number(remote.ry)||0,
+Number(remote.rz)||0
+);
+
+}
+
+for(
+const [id,mesh]
+of remotePlayers
+){
+
+if(!existing.has(id)){
+
+scene.remove(mesh);
+
+remotePlayers.delete(id);
+
+}
+
+}
+
+return;
+
+}
+
+
+/* =====================================================
+   JUGADOR SALIÓ
+===================================================== */
+
+if(data.type==="playerLeft"){
+
+const mesh=
+remotePlayers.get(data.id);
+
+if(mesh){
+
+scene.remove(mesh);
+
+remotePlayers.delete(data.id);
+
+}
+
+return;
+
+}
+
+
+/* =====================================================
+   PARTIDA COMENZÓ
+===================================================== */
+
+if(data.type==="roomStarted"){
+
+if(
+gameMode!=="multiplayer" ||
+!playing
+){
+
+startGame("multiplayer");
+
+}
+
+return;
+
+}
+
+
+/* =====================================================
+   ESTADO
+===================================================== */
+
+if(data.type==="roomState"){
+
+if(data.room){
+
+currentRoomCode=
+String(data.room).toUpperCase();
+
+document.getElementById(
+"hudRoomCode"
+).textContent=
+currentRoomCode;
+
+}
+
+if(data.players)
+updateRoomPlayers(data.players);
+
+}
+
+}
+
+
+/* =====================================================
+   JUGADORES DE LA SALA
+===================================================== */
+
+function updateRoomPlayers(players){
+
+const box=
+document.getElementById(
+"roomPlayers"
+);
+
+if(!box)
+return;
+
+box.innerHTML="";
+
+if(!players || players.length===0){
+
+const p=
+document.createElement("div");
+
+p.className="roomPlayer";
+
+p.textContent=
+"✈️ Vos";
+
+box.appendChild(p);
+
+document.getElementById(
+"onlinePlayers"
+).textContent="1";
+
+return;
+
+}
+
+for(const pData of players){
+
+const p=
+document.createElement("div");
+
+p.className="roomPlayer";
+
+const isMe=
+pData.id===multiplayerId;
+
+p.textContent=
+isMe
+?
+"✈️ Vos"
+:
+"✈️ Jugador";
+
+if(pData.score!==undefined){
+
+p.textContent+=
+" — 🏆 "+
+pData.score;
+
+}
+
+box.appendChild(p);
+
+}
+
+document.getElementById(
+"onlinePlayers"
+).textContent=
+players.length;
+
+}
+
+
+/* =====================================================
+   START GAME
+===================================================== */
+
+window.startGame=function(mode){
+
+gameMode=mode;
+
+hideMenus();
+hideGameControls();
+
+document.getElementById(
+"mainMenu"
+).style.display="none";
+
+if(mode==="multiplayer"){
+
+connectMultiplayer();
+
+}
+
+restartGame();
+
+};
+
+
+/* =====================================================
+   REINICIO
+===================================================== */
+
+window.restartGame=function(){
+
+for(const e of enemies)
+scene.remove(e);
+
+for(const p of projectiles)
+scene.remove(p);
+
+enemies=[];
+projectiles=[];
+
+score=0;
+
+
+/* VELOCIDAD INICIAL */
+
+speed=
+initialSpeed+
+planes[selectedPlane].speedBonus;
+
+targetX=0;
+targetY=0;
+
+projectilesDodged=0;
+enemyTimer=0;
+
+abilityEnergy=100;
+abilityActive=false;
+abilityTimer=0;
+
+playing=false;
+takingOff=true;
+
+player.position.set(
+0,-5.8,18
+);
+
+player.rotation.set(0,0,0);
+
+camera.position.set(
+0,2,34
+);
+
+camera.lookAt(
+0,-3,-20
+);
+
+document.getElementById(
+"score"
+).textContent="0";
+
+document.getElementById(
+"speed"
+).textContent=
+Math.floor(speed);
+
+document.getElementById(
+"missilesDodged"
+).textContent="0";
+
+document.getElementById(
+"gameOver"
+).style.display="none";
+
+if(gameMode==="multiplayer"){
+
+document.getElementById(
+"hudRoomCode"
+).textContent=
+currentRoomCode || "------";
+
+}
+
+showGameControls();
+
+updateScenario();
+
+startTakeoff();
+
+};
+
+
+/* =====================================================
+   DESPEGUE
+===================================================== */
+
+function startTakeoff(){
+
+takingOff=true;
+playing=false;
+
+const launch=
+document.getElementById("launch");
+
+launch.style.display="flex";
+
+const start=performance.now();
+
+function takeoff(now){
+
+const elapsed=
+(now-start)/1000;
+
+const progress=
+Math.min(
+1,
+elapsed/3.5
+);
+
+player.position.z=
+18-progress*35;
+
+player.position.y=
+-5.8+progress*8;
+
+player.rotation.x=
+-.12*progress;
+
+camera.position.x=
+player.position.x;
+
+camera.position.y=
+player.position.y+4;
+
+camera.position.z=
+player.position.z+14;
+
+camera.lookAt(
+player.position.x,
+player.position.y,
+player.position.z-25
+);
+
+if(elapsed<3.5){
+
+requestAnimationFrame(takeoff);
+
+}
+else{
+
+takingOff=false;
+playing=true;
+
+targetX=player.position.x;
+targetY=player.position.y;
+
+launch.style.display="none";
+
+}
+
+}
+
+requestAnimationFrame(takeoff);
+
+}
+
+
+/* =====================================================
+   JOYSTICK
+===================================================== */
+
+const joystick=
+document.getElementById("joystick");
+
+const stick=
+document.getElementById("stick");
+
+let joystickActive=false;
+
+const radius=55;
+
+function startJoystick(touch){
+
+joystickActive=true;
+moveJoystick(touch);
+
+}
+
+function moveJoystick(touch){
+
+const rect=
+joystick.getBoundingClientRect();
+
+let x=
+touch.clientX-
+(
+rect.left+
+rect.width/2
+);
+
+let y=
+touch.clientY-
+(
+rect.top+
+rect.height/2
+);
+
+const distance=
+Math.sqrt(x*x+y*y);
+
+if(distance>radius){
+
+x=x/distance*radius;
+y=y/distance*radius;
+
+}
+
+stick.style.left=
+"calc(50% + "+x+"px)";
+
+stick.style.top=
+"calc(50% + "+y+"px)";
+
+const plane=
+planes[selectedPlane];
+
+targetX=
+(x/radius)*
+(mapWidth*sensitivityH*plane.turnBonus);
+
+targetY=
+(-y/radius)*
+(
+(maxAltitude-minAltitude)*
+sensitivityV
+);
+
+targetY+=player.position.y;
+
+targetY=
+THREE.MathUtils.clamp(
+targetY,
+minAltitude,
+maxAltitude
+);
+
+}
+
+function endJoystick(){
+
+joystickActive=false;
+
+stick.style.left="50%";
+stick.style.top="50%";
+
+targetX=player.position.x;
+targetY=player.position.y;
+
+}
+
+joystick.addEventListener(
+"touchstart",
+e=>{
+
+e.preventDefault();
+
+if(e.touches.length)
+startJoystick(e.touches[0]);
+
+},
+{passive:false}
+);
+
+joystick.addEventListener(
+"touchmove",
+e=>{
+
+e.preventDefault();
+
+if(
+joystickActive&&
+e.touches.length
+)
+moveJoystick(e.touches[0]);
+
+},
+{passive:false}
+);
+
+joystick.addEventListener(
+"touchend",
+e=>{
+
+e.preventDefault();
+endJoystick();
+
+},
+{passive:false}
+);
+
+joystick.addEventListener(
+"touchcancel",
+e=>{
+
+e.preventDefault();
+endJoystick();
+
+},
+{passive:false}
+);
+
+
+/* =====================================================
+   HABILIDAD
+===================================================== */
+
+document.addEventListener(
+"touchstart",
+e=>{
+
+if(!playing)
+return;
+
+if(
+e.target===joystick||
+joystick.contains(e.target)
+)
+return;
+
+if(e.touches.length===1)
+activateAbility();
+
+},
+{passive:true}
+);
+
+
+/* =====================================================
+   INCLINACIÓN
+===================================================== */
+
+document.getElementById(
+"sensorButton"
+).onclick=async function(){
+
+if(sensorEnabled){
+
+if(orientationHandler){
+
+window.removeEventListener(
+"deviceorientation",
+orientationHandler,
+true
+);
+
+}
+
+sensorEnabled=false;
+phoneRoll=0;
+
+this.textContent=
+"📱 Activar inclinación";
+
+return;
+
+}
+
+if(
+typeof DeviceOrientationEvent!=="undefined"&&
+typeof DeviceOrientationEvent.requestPermission==="function"
+){
+
+try{
+
+const permission=
+await DeviceOrientationEvent
+.requestPermission();
+
+if(permission!=="granted")
+return;
+
+}
+catch(error){
+
+return;
+
+}
+
+}
+
+orientationHandler=
+function(event){
+
+const gamma=
+THREE.MathUtils.clamp(
+event.gamma||0,
+-30,
+30
+);
+
+phoneRoll=
+THREE.MathUtils.degToRad(
+gamma
+);
+
+};
+
+window.addEventListener(
+"deviceorientation",
+orientationHandler,
+true
+);
+
+sensorEnabled=true;
+
+this.textContent=
+"📱 Desactivar inclinación";
+
+};
+
+
+/* =====================================================
+   ANIMACIÓN
+===================================================== */
+
+let last=performance.now();
+
+function animate(now){
+
+requestAnimationFrame(animate);
+
+const delta=
+Math.min(
+(now-last)/1000,
+.05
+);
+
+last=now;
+
+if(playing){
+
+if(
+gameMode==="multiplayer" &&
+multiplayerConnected &&
+currentRoomCode
+){
+
+sendMultiplayer({
+
+type:"update",
+
+room:currentRoomCode,
+
+x:player.position.x,
+y:player.position.y,
+z:player.position.z,
+
+rx:player.rotation.x,
+ry:player.rotation.y,
+rz:player.rotation.z,
+
+score:score,
+plane:selectedPlane
+
+});
+
+}
+
+updateAbility(delta);
+
+const plane=
+planes[selectedPlane];
+
+const movementSmooth=
+1-
+Math.pow(
+.0005,
+delta
+);
+
+player.position.x=
+THREE.MathUtils.lerp(
+player.position.x,
+targetX,
+movementSmooth
+);
+
+player.position.y=
+THREE.MathUtils.lerp(
+player.position.y,
+targetY,
+movementSmooth
+);
+
+if(sensorEnabled){
+
+const sensorX=
+phoneRoll*
+8*
+plane.turnBonus;
+
+player.position.x=
+THREE.MathUtils.lerp(
+player.position.x,
+player.position.x+sensorX,
+delta*2.5
+);
+
+targetX=
+THREE.MathUtils.clamp(
+targetX+
+phoneRoll*
+5*
+plane.turnBonus*
+delta,
+-mapWidth+2,
+mapWidth-2
+);
+
+}
+
+player.position.x=
+THREE.MathUtils.clamp(
+player.position.x,
+-mapWidth+2,
+mapWidth-2
+);
+
+player.position.y=
+THREE.MathUtils.clamp(
+player.position.y,
+minAltitude,
+maxAltitude
+);
+
+keepAboveMountains();
+
+const forwardSpeed=
+speed*
+delta*
+.48;
+
+player.position.z-=forwardSpeed;
+
+camera.position.x=
+THREE.MathUtils.lerp(
+camera.position.x,
+player.position.x*.42,
+delta*4
+);
+
+camera.position.y=
+THREE.MathUtils.lerp(
+camera.position.y,
+player.position.y+4.2,
+delta*4
+);
+
+camera.position.z=
+THREE.MathUtils.lerp(
+camera.position.z,
+player.position.z+15,
+delta*5
+);
+
+camera.lookAt(
+player.position.x,
+player.position.y,
+player.position.z-32
+);
+
+const targetRoll=
+THREE.MathUtils.clamp(
+(targetX-player.position.x)*-.055,
+-.55,
+.55
+);
+
+const targetPitch=
+THREE.MathUtils.clamp(
+(targetY-player.position.y)*-.035,
+-.28,
+.28
+);
+
+player.rotation.z=
+THREE.MathUtils.lerp(
+player.rotation.z,
+targetRoll+
+(sensorEnabled?-phoneRoll*.8:0),
+delta*7
+);
+
+player.rotation.x=
+THREE.MathUtils.lerp(
+player.rotation.x,
+targetPitch,
+delta*6
+);
+
+
+/* =================================================
+   ENEMIGOS
+================================================= */
+
+enemyTimer+=delta;
+
+const enemyInterval=
+Math.max(
+.65,
+1.35-score*.0015
+);
+
+if(enemyTimer>=enemyInterval){
+
+enemyTimer=0;
+spawnEnemy();
+
+}
+
+for(
+let i=enemies.length-1;
+i>=0;
+i--
+){
+
+const enemy=enemies[i];
+
+enemy.position.z+=
+speed*.48*delta;
+
+enemy.position.x+=
+Math.sin(
+now*.001+i*1.7
+)*
+delta*.9;
+
+enemy.position.y+=
+Math.cos(
+now*.0014+i
+)*
+delta*.35;
+
+enemy.position.x=
+THREE.MathUtils.clamp(
+enemy.position.x,
+-mapWidth+1,
+mapWidth-1
+);
+
+enemy.position.y=
+THREE.MathUtils.clamp(
+enemy.position.y,
+-2,
+maxAltitude
+);
+
+if(planeCollision(enemy)){
+
+if(abilityCanProtect()){
+
+abilityActive=false;
+enemy.position.z-=20;
+
+}
+else{
+
+endGame();
+break;
+
+}
+
+}
+
+if(
+!enemy.userData.passed&&
+enemy.position.z>
+player.position.z+3
+){
+
+enemy.userData.passed=true;
+addPoint();
+
+}
+
+enemy.userData.nextProjectile-=delta;
+
+if(
+enemy.userData.nextProjectile<=0&&
+enemy.position.z<
+player.position.z-4
+){
+
+fireProjectile(enemy);
+
+enemy.userData.nextProjectile=
+3+Math.random()*2.5;
+
+}
+
+if(
+enemy.position.z>
+player.position.z+45
+){
+
+scene.remove(enemy);
+enemies.splice(i,1);
+
+}
+
+}
+
+
+/* =================================================
+   PROYECTILES
+===================================================== */
+
+for(
+let i=projectiles.length-1;
+i>=0;
+i--
+){
+
+const projectile=
+projectiles[i];
+
+projectile.userData.life+=delta;
+
+projectile.position.add(
+projectile.userData.velocity
+.clone()
+.multiplyScalar(delta)
+);
+
+projectile.rotation.z+=delta*5;
+
+if(projectileCollision(projectile)){
+
+if(abilityCanProtect()){
+
+abilityActive=false;
+
+scene.remove(projectile);
+projectiles.splice(i,1);
+
+continue;
+
+}
+
+endGame();
+break;
+
+}
+
+if(
+projectile.position.z>
+player.position.z+7
+){
+
+projectileDodgedPoint();
+
+scene.remove(projectile);
+projectiles.splice(i,1);
+
+continue;
+
+}
+
+if(projectile.userData.life>7){
+
+scene.remove(projectile);
+projectiles.splice(i,1);
+
+}
+
+}
+
+}
+
+renderer.render(scene,camera);
+
+}
+
+
+/* =====================================================
+   INICIO
+===================================================== */
+
+updateMoney();
+updateSkins();
+updateShop();
+updateMissions();
+updateSensitivityUI();
+updateInitialSpeedUI();
+
+document.getElementById(
+"abilityName"
+).textContent=
+planes[selectedPlane].ability;
+
+hideGameControls();
+
+requestAnimationFrame(animate);
+
+
+/* =====================================================
+   RESIZE
+===================================================== */
+
+window.addEventListener(
+"resize",
+function(){
+
+camera.aspect=
+innerWidth/innerHeight;
+
+camera.updateProjectionMatrix();
+
+renderer.setSize(
+innerWidth,
+innerHeight
+);
+
+}
+);
+
+</script>
+
+</body>
+</html>
