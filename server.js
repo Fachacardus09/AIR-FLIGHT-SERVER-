@@ -1,19 +1,184 @@
 const WebSocket = require("ws");
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
 const PORT = process.env.PORT || 3000;
 
+/* =====================================================
+   SERVIDOR HTTP
+   SIRVE EL INDEX.HTML Y LOS ARCHIVOS DEL JUEGO
+===================================================== */
+
+const PUBLIC_DIR = __dirname;
+
+const MIME_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".webp": "image/webp",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm"
+};
+
 const httpServer = http.createServer((req, res) => {
-    res.writeHead(200, {
-        "Content-Type": "text/plain; charset=utf-8"
+
+    let requestPath;
+
+    try {
+        requestPath =
+            decodeURIComponent(
+                req.url.split("?")[0]
+            );
+    } catch {
+        res.writeHead(400);
+        res.end("Solicitud inválida");
+        return;
+    }
+
+    if (requestPath === "/") {
+        requestPath = "/index.html";
+    }
+
+    /*
+       Evitar acceder a archivos fuera
+       de la carpeta del juego.
+    */
+
+    const safePath =
+        path.normalize(
+            requestPath
+        ).replace(/^(\.\.[/\\])+/, "");
+
+    const filePath =
+        path.join(
+            PUBLIC_DIR,
+            safePath
+        );
+
+    /*
+       Comprobar que realmente quede
+       dentro de la carpeta pública.
+    */
+
+    const relativePath =
+        path.relative(
+            PUBLIC_DIR,
+            filePath
+        );
+
+    if (
+        relativePath.startsWith("..") ||
+        path.isAbsolute(relativePath)
+    ) {
+
+        res.writeHead(403, {
+            "Content-Type":
+                "text/plain; charset=utf-8"
+        });
+
+        res.end("Acceso denegado");
+        return;
+    }
+
+    fs.stat(
+        filePath,
+        (error, stats) => {
+
+            if (
+                !error &&
+                stats.isFile()
+            ) {
+
+                const extension =
+                    path.extname(
+                        filePath
+                    ).toLowerCase();
+
+                const contentType =
+                    MIME_TYPES[extension] ||
+                    "application/octet-stream";
+
+                res.writeHead(
+                    200,
+                    {
+                        "Content-Type":
+                            contentType,
+
+                        "Cache-Control":
+                            "no-cache"
+                    }
+                );
+
+                fs.createReadStream(
+                    filePath
+                ).pipe(res);
+
+                return;
+            }
+
+            /*
+               Endpoint para comprobar
+               que el servidor está funcionando.
+            */
+
+            if (
+                requestPath ===
+                "/server-status"
+            ) {
+
+                res.writeHead(
+                    200,
+                    {
+                        "Content-Type":
+                            "application/json; charset=utf-8"
+                    }
+                );
+
+                res.end(
+                    JSON.stringify({
+                        online: true,
+                        server: "AIR FLIGHT",
+                        websocket: true
+                    })
+                );
+
+                return;
+            }
+
+            res.writeHead(
+                404,
+                {
+                    "Content-Type":
+                        "text/plain; charset=utf-8"
+                }
+            );
+
+            res.end(
+                "Archivo no encontrado"
+            );
+        }
+    );
+});
+
+/* =====================================================
+   WEBSOCKET
+===================================================== */
+
+const server =
+    new WebSocket.Server({
+        server: httpServer
     });
-
-    res.end("AIR FLIGHT SERVER ONLINE ✈️");
-});
-
-const server = new WebSocket.Server({
-    server: httpServer
-});
 
 /* =====================================================
    JUGADORES, SALAS Y MISILES
@@ -43,8 +208,11 @@ const RESPAWN_TIME = 3000;
    CONFIGURACIÓN DE PARTIDA
 ===================================================== */
 
-const MATCH_DURATION = 5 * 60 * 1000;
+const MATCH_DURATION =
+    5 * 60 * 1000;
+
 const MIN_PLAYERS_TO_START = 2;
+
 const MATCH_TICK = 1000;
 
 /* =====================================================
@@ -66,20 +234,35 @@ const MAX_MESSAGE_SIZE = 16384;
 ===================================================== */
 
 function createId() {
-    return Date.now().toString(36) +
-        Math.random().toString(36).substring(2, 8);
+
+    return (
+        Date.now().toString(36) +
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+    );
 }
 
 function createMissileId() {
-    return "m_" +
+
+    return (
+        "m_" +
         Date.now().toString(36) +
-        Math.random().toString(36).substring(2, 8);
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+    );
 }
 
 function createReconnectToken() {
-    return createId() +
+
+    return (
+        createId() +
         "_" +
-        Math.random().toString(36).substring(2, 12);
+        Math.random()
+            .toString(36)
+            .substring(2, 12)
+    );
 }
 
 function createRoomCode() {
@@ -93,16 +276,24 @@ function createRoomCode() {
 
         code = "";
 
-        for (let i = 0; i < 6; i++) {
+        for (
+            let i = 0;
+            i < 6;
+            i++
+        ) {
 
-            code += chars[
-                Math.floor(
-                    Math.random() * chars.length
-                )
-            ];
+            code +=
+                chars[
+                    Math.floor(
+                        Math.random() *
+                        chars.length
+                    )
+                ];
         }
 
-    } while (rooms.has(code));
+    } while (
+        rooms.has(code)
+    );
 
     return code;
 }
@@ -111,14 +302,17 @@ function send(socket, data) {
 
     if (
         socket &&
-        socket.readyState === WebSocket.OPEN
+        socket.readyState ===
+            WebSocket.OPEN
     ) {
 
         try {
+
             socket.send(
                 JSON.stringify(data)
             );
-        } catch (error) {
+
+        } catch {
             /* Ignorar error de envío */
         }
     }
@@ -128,11 +322,19 @@ function send(socket, data) {
    VALIDACIÓN NUMÉRICA
 ===================================================== */
 
-function safeNumber(value, min, max, fallback = 0) {
+function safeNumber(
+    value,
+    min,
+    max,
+    fallback = 0
+) {
 
-    const number = Number(value);
+    const number =
+        Number(value);
 
-    if (!Number.isFinite(number)) {
+    if (
+        !Number.isFinite(number)
+    ) {
         return fallback;
     }
 
@@ -147,7 +349,11 @@ function safeNumber(value, min, max, fallback = 0) {
     return number;
 }
 
-function isValidVector(x, y, z) {
+function isValidVector(
+    x,
+    y,
+    z
+) {
 
     return (
         Number.isFinite(x) &&
@@ -183,9 +389,15 @@ function broadcastRoom(
 
     if (!room) return;
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
-        if (playerId === exceptId) {
+        if (
+            playerId ===
+            exceptId
+        ) {
             continue;
         }
 
@@ -222,7 +434,10 @@ function getRoomTimeRemaining(room) {
         "playing"
     ) {
 
-        return room.timeRemaining || 0;
+        return (
+            room.timeRemaining ||
+            0
+        );
     }
 
     const remaining =
@@ -248,7 +463,10 @@ function sendRoomPlayers(roomCode) {
 
     const list = [];
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
         const player =
             players.get(playerId);
@@ -304,7 +522,10 @@ function sendRoomPlayers(roomCode) {
         });
     }
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
         const player =
             players.get(playerId);
@@ -327,7 +548,9 @@ function sendRoomPlayers(roomCode) {
                     room.gameState,
 
                 timeRemaining:
-                    getRoomTimeRemaining(room)
+                    getRoomTimeRemaining(
+                        room
+                    )
             }
         );
     }
@@ -366,10 +589,15 @@ function sendPlayerStats(player) {
    ELIMINAR MISILES DE SALA
 ===================================================== */
 
-function removeRoomMissiles(roomCode) {
+function removeRoomMissiles(
+    roomCode
+) {
 
     for (
-        const [missileId, missile]
+        const [
+            missileId,
+            missile
+        ]
         of missiles
     ) {
 
@@ -401,10 +629,15 @@ function removeRoomMissiles(roomCode) {
    ELIMINAR MISILES DE JUGADOR
 ===================================================== */
 
-function removePlayerMissiles(playerId) {
+function removePlayerMissiles(
+    playerId
+) {
 
     for (
-        const [missileId, missile]
+        const [
+            missileId,
+            missile
+        ]
         of missiles
     ) {
 
@@ -442,7 +675,9 @@ function removePlayerMissiles(playerId) {
    REINICIAR ESTADÍSTICAS
 ===================================================== */
 
-function resetPlayerStats(player) {
+function resetPlayerStats(
+    player
+) {
 
     if (!player) return;
 
@@ -461,7 +696,9 @@ function resetPlayerStats(player) {
    CANCELAR RESPAWN
 ===================================================== */
 
-function cancelRespawn(player) {
+function cancelRespawn(
+    player
+) {
 
     if (!player) return;
 
@@ -471,7 +708,8 @@ function cancelRespawn(player) {
             player.respawnTimer
         );
 
-        player.respawnTimer = null;
+        player.respawnTimer =
+            null;
     }
 }
 
@@ -479,7 +717,9 @@ function cancelRespawn(player) {
    INICIAR PARTIDA
 ===================================================== */
 
-function startMatch(roomCode) {
+function startMatch(
+    roomCode
+) {
 
     const room =
         rooms.get(roomCode);
@@ -506,21 +746,27 @@ function startMatch(roomCode) {
             room.matchTimer
         );
 
-        room.matchTimer = null;
+        room.matchTimer =
+            null;
     }
 
     removeRoomMissiles(
         roomCode
     );
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
         const player =
             players.get(playerId);
 
         if (!player) continue;
 
-        cancelRespawn(player);
+        cancelRespawn(
+            player
+        );
 
         resetPlayerStats(
             player
@@ -576,7 +822,9 @@ function startMatch(roomCode) {
             () => {
 
                 const currentRoom =
-                    rooms.get(roomCode);
+                    rooms.get(
+                        roomCode
+                    );
 
                 if (!currentRoom) {
 
@@ -643,7 +891,9 @@ function startMatch(roomCode) {
    FINAL DE PARTIDA
 ===================================================== */
 
-function endMatch(roomCode) {
+function endMatch(
+    roomCode
+) {
 
     const room =
         rooms.get(roomCode);
@@ -660,8 +910,7 @@ function endMatch(roomCode) {
     room.gameState =
         "finished";
 
-    room.timeRemaining =
-        0;
+    room.timeRemaining = 0;
 
     room.matchEndTime =
         Date.now();
@@ -680,19 +929,27 @@ function endMatch(roomCode) {
         roomCode
     );
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
         const player =
             players.get(playerId);
 
         if (!player) continue;
 
-        cancelRespawn(player);
+        cancelRespawn(
+            player
+        );
     }
 
     const ranking = [];
 
-    for (const playerId of room.players) {
+    for (
+        const playerId
+        of room.players
+    ) {
 
         const player =
             players.get(playerId);
@@ -726,8 +983,10 @@ function endMatch(roomCode) {
                 a.score
             ) {
 
-                return b.score -
-                    a.score;
+                return (
+                    b.score -
+                    a.score
+                );
             }
 
             if (
@@ -735,12 +994,16 @@ function endMatch(roomCode) {
                 a.kills
             ) {
 
-                return b.kills -
-                    a.kills;
+                return (
+                    b.kills -
+                    a.kills
+                );
             }
 
-            return a.deaths -
-                b.deaths;
+            return (
+                a.deaths -
+                b.deaths
+            );
         }
     );
 
@@ -781,11 +1044,14 @@ function endMatch(roomCode) {
    RESPAWN
 ===================================================== */
 
-function respawnPlayer(player) {
+function respawnPlayer(
+    player
+) {
 
     if (!player) return;
 
-    player.respawnTimer = null;
+    player.respawnTimer =
+        null;
 
     if (
         !player.socket ||
@@ -887,7 +1153,9 @@ function respawnPlayer(player) {
    PROGRAMAR RESPAWN
 ===================================================== */
 
-function scheduleRespawn(player) {
+function scheduleRespawn(
+    player
+) {
 
     if (!player) return;
 
@@ -937,7 +1205,8 @@ function registerKill(
 
     if (
         attacker &&
-        attacker.id !== victimId
+        attacker.id !==
+            victimId
     ) {
 
         attacker.kills++;
@@ -1004,7 +1273,9 @@ function registerKill(
    ELIMINAR JUGADOR DE SALA
 ===================================================== */
 
-function removeFromRoom(player) {
+function removeFromRoom(
+    player
+) {
 
     if (!player.roomCode) {
         return;
@@ -1024,7 +1295,9 @@ function removeFromRoom(player) {
         return;
     }
 
-    cancelRespawn(player);
+    cancelRespawn(
+        player
+    );
 
     removePlayerMissiles(
         player.id
@@ -1047,7 +1320,8 @@ function removeFromRoom(player) {
     );
 
     if (
-        room.host === player.id &&
+        room.host ===
+            player.id &&
         room.players.size > 0
     ) {
 
@@ -1163,11 +1437,14 @@ function removeFromRoom(player) {
    DESCONEXIÓN TEMPORAL
 ===================================================== */
 
-function temporarilyDisconnectPlayer(player) {
+function temporarilyDisconnectPlayer(
+    player
+) {
 
     if (!player) return;
 
-    player.connected = false;
+    player.connected =
+        false;
 
     if (player.socket) {
         player.socket = null;
@@ -1270,7 +1547,8 @@ function reconnectPlayer(
     if (
         oldPlayer.reconnectToken !==
         String(
-            data.reconnectToken || ""
+            data.reconnectToken ||
+            ""
         )
     ) {
 
@@ -1288,7 +1566,9 @@ function reconnectPlayer(
         return false;
     }
 
-    if (oldPlayer.reconnectTimer) {
+    if (
+        oldPlayer.reconnectTimer
+    ) {
 
         clearTimeout(
             oldPlayer.reconnectTimer
@@ -1365,7 +1645,9 @@ function reconnectPlayer(
    CREAR SALA
 ===================================================== */
 
-function createRoomForPlayer(player) {
+function createRoomForPlayer(
+    player
+) {
 
     removeFromRoom(
         player
@@ -1599,10 +1881,15 @@ function joinRoom(
    BUSCAR PARTIDA AL AZAR
 ===================================================== */
 
-function findPublicRoom(player) {
+function findPublicRoom(
+    player
+) {
 
     for (
-        const [code, room]
+        const [
+            code,
+            room
+        ]
         of rooms
     ) {
 
@@ -1914,8 +2201,7 @@ function applyDamage(
         target.health < 0
     ) {
 
-        target.health =
-            0;
+        target.health = 0;
     }
 
     broadcastRoom(
@@ -1960,11 +2246,9 @@ function applyDamage(
         target.health <= 0
     ) {
 
-        target.health =
-            0;
+        target.health = 0;
 
-        target.alive =
-            false;
+        target.alive = false;
 
         removePlayerMissiles(
             target.id
@@ -2133,7 +2417,10 @@ function updateMissiles() {
         Date.now();
 
     for (
-        const [missileId, missile]
+        const [
+            missileId,
+            missile
+        ]
         of missiles
     ) {
 
@@ -2216,7 +2503,7 @@ setInterval(
 );
 
 /* =====================================================
-   CONEXIONES
+   CONEXIONES WEBSOCKET
 ===================================================== */
 
 server.on(
@@ -2226,10 +2513,12 @@ server.on(
         let currentPlayer = null;
 
         /* =================================================
-           CREAR / RECONEXIÓN
+           PROCESAR MENSAJES
         ================================================= */
 
-        function handleConnectionMessage(raw) {
+        function handleConnectionMessage(
+            raw
+        ) {
 
             if (
                 raw.length >
@@ -2259,7 +2548,7 @@ server.on(
                         raw.toString()
                     );
 
-            } catch (error) {
+            } catch {
 
                 send(
                     socket,
@@ -2405,25 +2694,32 @@ server.on(
                             id,
 
                         reconnectToken:
-                            currentPlayer.reconnectToken,
+                            currentPlayer
+                                .reconnectToken,
 
                         maxHealth:
-                            currentPlayer.maxHealth,
+                            currentPlayer
+                                .maxHealth,
 
                         health:
-                            currentPlayer.health,
+                            currentPlayer
+                                .health,
 
                         alive:
-                            currentPlayer.alive,
+                            currentPlayer
+                                .alive,
 
                         kills:
-                            currentPlayer.kills,
+                            currentPlayer
+                                .kills,
 
                         deaths:
-                            currentPlayer.deaths,
+                            currentPlayer
+                                .deaths,
 
                         score:
-                            currentPlayer.score
+                            currentPlayer
+                                .score
                     }
                 );
             }
@@ -2667,14 +2963,9 @@ server.on(
                     return;
                 }
 
-                player.x =
-                    x;
-
-                player.y =
-                    y;
-
-                player.z =
-                    z;
+                player.x = x;
+                player.y = y;
+                player.z = z;
 
                 player.rotationX =
                     safeNumber(
@@ -2831,7 +3122,7 @@ server.on(
 
                 if (
                     typeof data.attackerId ===
-                    "string" &&
+                        "string" &&
                     players.has(
                         data.attackerId
                     )
@@ -2997,7 +3288,7 @@ server.on(
         }
 
         /* =================================================
-           ÚNICO LISTENER DE MENSAJES
+           LISTENER DE MENSAJES
         ================================================= */
 
         socket.on(
@@ -3053,7 +3344,10 @@ setInterval(
     () => {
 
         for (
-            const [roomCode, room]
+            const [
+                roomCode,
+                room
+            ]
             of rooms
         ) {
 
@@ -3092,6 +3386,10 @@ httpServer.listen(
 
         console.log(
             `✈️ AIR FLIGHT SERVER ONLINE - PORT ${PORT}`
+        );
+
+        console.log(
+            `🌐 Index.html conectado al servidor`
         );
 
         console.log(
@@ -3148,6 +3446,10 @@ httpServer.listen(
 
         console.log(
             `🔁 Reinicio de partidas listo`
+        );
+
+        console.log(
+            `📡 HTTP + WebSocket funcionando juntos`
         );
     }
 );
