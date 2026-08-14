@@ -1,14 +1,14 @@
-/* =========================================================
+/* =====================================================
    AIR FLIGHT
-   CLIENTE MULTIJUGADOR
-   Conectado con server.js
-========================================================= */
+   SCRIPT.JS
+   CONEXIÓN COMPLETA CON SERVER.JS
+===================================================== */
 
 "use strict";
 
-/* =========================================================
+/* =====================================================
    CONFIGURACIÓN
-========================================================= */
+===================================================== */
 
 const AIR_FLIGHT = {
 
@@ -16,31 +16,21 @@ const AIR_FLIGHT = {
 
     connected: false,
 
-    connecting: false,
-
     reconnecting: false,
 
-    reconnectAttempts: 0,
-
-    reconnectTimer: null,
-
-    reconnectDelay: 2000,
-
-    maxReconnectDelay: 10000,
-
-    id: null,
+    playerId: null,
 
     reconnectToken: null,
 
-    room: null,
+    roomCode: null,
 
     isHost: false,
 
     gameState: "waiting",
 
-    matchNumber: 0,
+    players: new Map(),
 
-    timeRemaining: 0,
+    missiles: new Map(),
 
     maxHealth: 100,
 
@@ -56,72 +46,115 @@ const AIR_FLIGHT = {
 
     plane: 0,
 
-    players: new Map(),
+    matchNumber: 0,
 
-    missiles: new Map(),
+    matchDuration: 5 * 60 * 1000,
 
-    position: {
+    timeRemaining: 0,
 
-        x: 0,
-        y: 0,
-        z: 0
+    reconnectAttempts: 0,
 
-    },
+    maxReconnectAttempts: 10,
 
-    rotation: {
+    reconnectDelay: 2000,
 
-        x: 0,
-        y: 0,
-        z: 0
+    lastPlayerUpdate: 0,
 
-    },
+    playerUpdateInterval: 50,
 
-    lastPositionSent: 0,
-
-    positionSendInterval: 50,
-
-    intentionalClose: false
+    initialized: false
 
 };
 
 
-/* =========================================================
-   UTILIDADES
-========================================================= */
+/* =====================================================
+   REFERENCIA CORTA
+===================================================== */
 
-function log(...args) {
+const AF = AIR_FLIGHT;
 
-    console.log(
-        "[AIR FLIGHT]",
-        ...args
-    );
 
+/* =====================================================
+   OBTENER ELEMENTOS DEL HTML
+===================================================== */
+
+function getElement(...ids) {
+
+    for (const id of ids) {
+
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            return element;
+        }
+    }
+
+    return null;
 }
 
 
-function warn(...args) {
+/* =====================================================
+   MOSTRAR MENSAJES
+===================================================== */
 
-    console.warn(
-        "[AIR FLIGHT]",
-        ...args
-    );
+function showMessage(message) {
 
+    console.log("✈️ AIR FLIGHT:", message);
+
+    const element =
+        getElement(
+            "serverMessage",
+            "connectionMessage",
+            "multiplayerMessage",
+            "message"
+        );
+
+    if (element) {
+        element.textContent =
+            String(message);
+    }
 }
 
 
-function error(...args) {
+/* =====================================================
+   ESTADO DE CONEXIÓN
+===================================================== */
 
-    console.error(
-        "[AIR FLIGHT]",
-        ...args
-    );
+function updateConnectionUI() {
 
+    const elements = [
+
+        getElement(
+            "connectionStatus",
+            "serverStatus"
+        ),
+
+        getElement(
+            "onlineStatus"
+        )
+
+    ].filter(Boolean);
+
+    for (const element of elements) {
+
+        if (AF.connected) {
+
+            element.textContent =
+                "🟢 CONECTADO";
+
+        } else {
+
+            element.textContent =
+                "🔴 DESCONECTADO";
+        }
+    }
 }
 
 
-/* =========================================================
-   CREAR URL WEBSOCKET
-========================================================= */
+/* =====================================================
+   CREAR URL DEL WEBSOCKET
+===================================================== */
 
 function getWebSocketURL() {
 
@@ -135,312 +168,135 @@ function getWebSocketURL() {
         "//" +
         location.host
     );
-
 }
 
 
-/* =========================================================
-   CONEXIÓN
-========================================================= */
+/* =====================================================
+   CONECTAR
+===================================================== */
 
 function connectToServer() {
 
     if (
-        AIR_FLIGHT.connected ||
-        AIR_FLIGHT.connecting
+        AF.socket &&
+        (
+            AF.socket.readyState ===
+                WebSocket.OPEN ||
+
+            AF.socket.readyState ===
+                WebSocket.CONNECTING
+        )
     ) {
 
         return;
-
     }
-
-    AIR_FLIGHT.connecting = true;
-
-    AIR_FLIGHT.intentionalClose = false;
-
-    log(
-        "Conectando a:",
-        getWebSocketURL()
-    );
 
     try {
 
-        AIR_FLIGHT.socket =
+        AF.socket =
             new WebSocket(
                 getWebSocketURL()
             );
 
-    } catch (err) {
+    } catch (error) {
 
-        AIR_FLIGHT.connecting = false;
-
-        error(
-            "No se pudo crear WebSocket:",
-            err
+        console.error(
+            "❌ No se pudo crear WebSocket:",
+            error
         );
+
+        AF.connected =
+            false;
+
+        updateConnectionUI();
 
         scheduleReconnect();
 
         return;
-
-    }
-
-    setupSocketEvents();
-
-}
-
-
-/* =========================================================
-   EVENTOS DEL SOCKET
-========================================================= */
-
-function setupSocketEvents() {
-
-    const socket =
-        AIR_FLIGHT.socket;
-
-    if (!socket) {
-        return;
     }
 
 
-    socket.addEventListener(
+    AF.socket.addEventListener(
         "open",
         handleSocketOpen
     );
 
 
-    socket.addEventListener(
+    AF.socket.addEventListener(
         "message",
         handleSocketMessage
     );
 
 
-    socket.addEventListener(
+    AF.socket.addEventListener(
         "close",
         handleSocketClose
     );
 
 
-    socket.addEventListener(
+    AF.socket.addEventListener(
         "error",
         handleSocketError
     );
-
 }
 
 
-/* =========================================================
+/* =====================================================
    SOCKET ABIERTO
-========================================================= */
+===================================================== */
 
 function handleSocketOpen() {
 
-    AIR_FLIGHT.connected = true;
+    console.log(
+        "✈️ AIR FLIGHT conectado al servidor"
+    );
 
-    AIR_FLIGHT.connecting = false;
+    AF.connected =
+        true;
 
-    AIR_FLIGHT.reconnectAttempts = 0;
+    AF.reconnecting =
+        false;
 
-    log(
-        "✈️ Conectado al servidor"
+    AF.reconnectAttempts =
+        0;
+
+    updateConnectionUI();
+
+    showMessage(
+        "🟢 Conectado al servidor"
     );
 
 
     /*
-       Si teníamos una sesión anterior,
-       intentamos reconectarla.
+       Si ya teníamos una sesión,
+       intentamos recuperarla.
     */
 
     if (
-        AIR_FLIGHT.id &&
-        AIR_FLIGHT.reconnectToken
+        AF.playerId &&
+        AF.reconnectToken
     ) {
 
-        sendReconnect();
+        sendMessage({
+
+            type:
+                "reconnect",
+
+            id:
+                AF.playerId,
+
+            reconnectToken:
+                AF.reconnectToken
+
+        });
 
     }
-
 }
 
 
-/* =========================================================
-   SOCKET CERRADO
-========================================================= */
-
-function handleSocketClose() {
-
-    AIR_FLIGHT.connected = false;
-
-    AIR_FLIGHT.connecting = false;
-
-    log(
-        "❌ Conexión cerrada"
-    );
-
-
-    if (
-        !AIR_FLIGHT.intentionalClose
-    ) {
-
-        scheduleReconnect();
-
-    }
-
-}
-
-
-/* =========================================================
-   ERROR
-========================================================= */
-
-function handleSocketError(event) {
-
-    error(
-        "Error WebSocket:",
-        event
-    );
-
-}
-
-
-/* =========================================================
-   RECONEXIÓN AUTOMÁTICA
-========================================================= */
-
-function scheduleReconnect() {
-
-    if (
-        AIR_FLIGHT.reconnectTimer
-    ) {
-
-        return;
-
-    }
-
-
-    if (
-        AIR_FLIGHT.intentionalClose
-    ) {
-
-        return;
-
-    }
-
-
-    AIR_FLIGHT.reconnectAttempts++;
-
-
-    const delay =
-        Math.min(
-            AIR_FLIGHT.reconnectDelay *
-            AIR_FLIGHT.reconnectAttempts,
-
-            AIR_FLIGHT.maxReconnectDelay
-        );
-
-
-    log(
-        "Intentando reconectar en",
-        delay,
-        "ms"
-    );
-
-
-    AIR_FLIGHT.reconnectTimer =
-        setTimeout(
-            () => {
-
-                AIR_FLIGHT.reconnectTimer =
-                    null;
-
-                connectToServer();
-
-            },
-            delay
-        );
-
-}
-
-
-/* =========================================================
-   ENVIAR MENSAJE
-========================================================= */
-
-function sendMessage(data) {
-
-    if (
-        !AIR_FLIGHT.socket ||
-        AIR_FLIGHT.socket.readyState !==
-            WebSocket.OPEN
-    ) {
-
-        warn(
-            "No se puede enviar. Socket cerrado."
-        );
-
-        return false;
-
-    }
-
-
-    try {
-
-        AIR_FLIGHT.socket.send(
-            JSON.stringify(data)
-        );
-
-        return true;
-
-    } catch (err) {
-
-        error(
-            "Error enviando mensaje:",
-            err
-        );
-
-        return false;
-
-    }
-
-}
-
-
-/* =========================================================
-   RECONEXIÓN DE SESIÓN
-========================================================= */
-
-function sendReconnect() {
-
-    if (
-        !AIR_FLIGHT.id ||
-        !AIR_FLIGHT.reconnectToken
-    ) {
-
-        return;
-
-    }
-
-
-    sendMessage({
-
-        type:
-            "reconnect",
-
-        id:
-            AIR_FLIGHT.id,
-
-        reconnectToken:
-            AIR_FLIGHT.reconnectToken
-
-    });
-
-}
-
-
-/* =========================================================
-   MENSAJES RECIBIDOS
-========================================================= */
+/* =====================================================
+   RECIBIR MENSAJES
+===================================================== */
 
 function handleSocketMessage(event) {
 
@@ -453,43 +309,28 @@ function handleSocketMessage(event) {
                 event.data
             );
 
-    } catch (err) {
+    } catch (error) {
 
-        error(
-            "Mensaje inválido del servidor"
+        console.error(
+            "❌ Mensaje inválido:",
+            event.data
         );
 
         return;
-
     }
-
 
     if (
         !data ||
         typeof data !== "object"
     ) {
-
         return;
-
     }
 
-
-    log(
+    console.log(
         "📡 Servidor:",
         data
     );
 
-
-    handleServerMessage(data);
-
-}
-
-
-/* =========================================================
-   ROUTER DE MENSAJES
-========================================================= */
-
-function handleServerMessage(data) {
 
     switch (data.type) {
 
@@ -497,335 +338,292 @@ function handleServerMessage(data) {
             handleWelcome(data);
             break;
 
-
         case "reconnected":
             handleReconnected(data);
             break;
-
 
         case "reconnectError":
             handleReconnectError(data);
             break;
 
-
         case "roomCreated":
             handleRoomCreated(data);
             break;
-
 
         case "roomJoined":
             handleRoomJoined(data);
             break;
 
-
-        case "roomError":
-            handleRoomError(data);
-            break;
-
-
-        case "publicMatchCreated":
-            handlePublicMatchCreated(data);
-            break;
-
-
         case "roomPlayers":
             handleRoomPlayers(data);
             break;
-
-
-        case "roomHost":
-            handleRoomHost(data);
-            break;
-
 
         case "playerJoined":
             handlePlayerJoined(data);
             break;
 
-
         case "playerLeft":
             handlePlayerLeft(data);
             break;
-
 
         case "playerDisconnected":
             handlePlayerDisconnected(data);
             break;
 
-
         case "playerReconnected":
             handlePlayerReconnected(data);
             break;
 
-
-        case "playerUpdate":
-            handlePlayerUpdate(data);
+        case "roomHost":
+            handleRoomHost(data);
             break;
-
-
-        case "gameStarted":
-            handleGameStarted(data);
-            break;
-
-
-        case "gameWaiting":
-            handleGameWaiting(data);
-            break;
-
-
-        case "matchTime":
-            handleMatchTime(data);
-            break;
-
-
-        case "gameEnded":
-            handleGameEnded(data);
-            break;
-
-
-        case "playerDamaged":
-            handlePlayerDamaged(data);
-            break;
-
-
-        case "playerDestroyed":
-            handlePlayerDestroyed(data);
-            break;
-
-
-        case "playerRespawned":
-            handlePlayerRespawned(data);
-            break;
-
-
-        case "scoreUpdate":
-            handleScoreUpdate(data);
-            break;
-
-
-        case "killConfirmed":
-            handleKillConfirmed(data);
-            break;
-
-
-        case "missileCreated":
-            handleMissileCreated(data);
-            break;
-
-
-        case "missileUpdate":
-            handleMissileUpdate(data);
-            break;
-
-
-        case "missileHit":
-            handleMissileHit(data);
-            break;
-
-
-        case "missileRemoved":
-            handleMissileRemoved(data);
-            break;
-
 
         case "leftRoom":
             handleLeftRoom(data);
             break;
 
+        case "publicMatchCreated":
+            handlePublicMatchCreated(data);
+            break;
+
+        case "roomError":
+            handleRoomError(data);
+            break;
+
+        case "gameStarted":
+            handleGameStarted(data);
+            break;
+
+        case "gameWaiting":
+            handleGameWaiting(data);
+            break;
+
+        case "matchTime":
+            handleMatchTime(data);
+            break;
+
+        case "gameEnded":
+            handleGameEnded(data);
+            break;
+
+        case "playerUpdate":
+            handlePlayerUpdate(data);
+            break;
+
+        case "playerDamaged":
+            handlePlayerDamaged(data);
+            break;
+
+        case "playerDestroyed":
+            handlePlayerDestroyed(data);
+            break;
+
+        case "playerRespawned":
+            handlePlayerRespawned(data);
+            break;
+
+        case "scoreUpdate":
+            handleScoreUpdate(data);
+            break;
+
+        case "killConfirmed":
+            handleKillConfirmed(data);
+            break;
+
+        case "missileCreated":
+            handleMissileCreated(data);
+            break;
+
+        case "missileUpdate":
+            handleMissileUpdate(data);
+            break;
+
+        case "missileHit":
+            handleMissileHit(data);
+            break;
+
+        case "missileRemoved":
+            handleMissileRemoved(data);
+            break;
 
         case "error":
             handleServerError(data);
             break;
 
-
         default:
 
-            warn(
-                "Mensaje no reconocido:",
+            console.warn(
+                "⚠️ Mensaje desconocido:",
                 data.type
             );
 
             break;
-
     }
-
 }
 
 
-/* =========================================================
+/* =====================================================
    WELCOME
-========================================================= */
+===================================================== */
 
 function handleWelcome(data) {
 
-    AIR_FLIGHT.id =
-        data.id || null;
+    AF.playerId =
+        data.id ||
+        null;
 
-    AIR_FLIGHT.reconnectToken =
-        data.reconnectToken || null;
+    AF.reconnectToken =
+        data.reconnectToken ||
+        null;
 
-    updateLocalStats(data);
+    AF.maxHealth =
+        Number(
+            data.maxHealth
+        ) || 100;
 
-    log(
-        "👤 ID:",
-        AIR_FLIGHT.id
-    );
+    AF.health =
+        Number(
+            data.health
+        );
 
-    log(
-        "🔑 Token de reconexión recibido"
-    );
+    AF.alive =
+        data.alive !== false;
 
+    AF.kills =
+        Number(
+            data.kills
+        ) || 0;
+
+    AF.deaths =
+        Number(
+            data.deaths
+        ) || 0;
+
+    AF.score =
+        Number(
+            data.score
+        ) || 0;
 
     saveSession();
 
+    updateHealthUI();
+
+    updateStatsUI();
+
+    console.log(
+        "👤 Jugador creado:",
+        AF.playerId
+    );
 }
 
 
-/* =========================================================
-   RECONNECTED
-========================================================= */
+/* =====================================================
+   RECONEXIÓN CORRECTA
+===================================================== */
 
 function handleReconnected(data) {
 
-    AIR_FLIGHT.id =
-        data.id || AIR_FLIGHT.id;
+    AF.playerId =
+        data.id ||
+        AF.playerId;
 
-    AIR_FLIGHT.reconnectToken =
+    AF.roomCode =
+        data.room ||
+        null;
+
+    AF.reconnectToken =
         data.reconnectToken ||
-        AIR_FLIGHT.reconnectToken;
+        AF.reconnectToken;
 
-    AIR_FLIGHT.room =
-        data.room || null;
+    AF.maxHealth =
+        Number(
+            data.maxHealth
+        ) || AF.maxHealth;
 
-    updateLocalStats(data);
+    AF.health =
+        Number(
+            data.health
+        );
 
-    AIR_FLIGHT.reconnecting =
-        false;
+    AF.alive =
+        data.alive !== false;
 
-    AIR_FLIGHT.connected =
-        true;
+    AF.kills =
+        Number(
+            data.kills
+        ) || 0;
+
+    AF.deaths =
+        Number(
+            data.deaths
+        ) || 0;
+
+    AF.score =
+        Number(
+            data.score
+        ) || 0;
 
     saveSession();
 
+    updateHealthUI();
 
-    log(
-        "🔄 Sesión reconectada"
+    updateStatsUI();
+
+    showMessage(
+        "🔄 Reconectado correctamente"
     );
 
+    if (AF.roomCode) {
 
-    if (
-        AIR_FLIGHT.room
-    ) {
-
-        requestRoomState();
-
+        showRoomCode(
+            AF.roomCode
+        );
     }
-
 }
 
 
-/* =========================================================
+/* =====================================================
    ERROR DE RECONEXIÓN
-========================================================= */
+===================================================== */
 
 function handleReconnectError(data) {
 
-    warn(
-        "Reconexión rechazada:",
+    console.warn(
+        "⚠️ Reconexión fallida:",
         data.message
     );
 
-
     /*
-       La sesión ya no puede recuperarse.
-       Creamos una nueva sesión.
+       Limpiamos la sesión solamente
+       si el servidor rechazó el token.
     */
 
     clearSession();
 
-    AIR_FLIGHT.id = null;
+    AF.playerId =
+        null;
 
-    AIR_FLIGHT.reconnectToken = null;
+    AF.reconnectToken =
+        null;
 
+    AF.roomCode =
+        null;
+
+    AF.reconnecting =
+        false;
+
+    showMessage(
+        data.message ||
+        "No se pudo reconectar"
+    );
 }
 
 
-/* =========================================================
-   ESTADÍSTICAS LOCALES
-========================================================= */
-
-function updateLocalStats(data) {
-
-    if (
-        data.maxHealth !== undefined
-    ) {
-
-        AIR_FLIGHT.maxHealth =
-            Number(data.maxHealth);
-
-    }
-
-
-    if (
-        data.health !== undefined
-    ) {
-
-        AIR_FLIGHT.health =
-            Number(data.health);
-
-    }
-
-
-    if (
-        data.alive !== undefined
-    ) {
-
-        AIR_FLIGHT.alive =
-            Boolean(data.alive);
-
-    }
-
-
-    if (
-        data.kills !== undefined
-    ) {
-
-        AIR_FLIGHT.kills =
-            Number(data.kills);
-
-    }
-
-
-    if (
-        data.deaths !== undefined
-    ) {
-
-        AIR_FLIGHT.deaths =
-            Number(data.deaths);
-
-    }
-
-
-    if (
-        data.score !== undefined
-    ) {
-
-        AIR_FLIGHT.score =
-            Number(data.score);
-
-    }
-
-
-    updateHUD();
-
-}
-
-
-/* =========================================================
+/* =====================================================
    CREAR SALA
-========================================================= */
+===================================================== */
 
-function createRoom(plane = AIR_FLIGHT.plane) {
+function createRoom(plane = AF.plane) {
 
     sendMessage({
 
@@ -833,28 +631,26 @@ function createRoom(plane = AIR_FLIGHT.plane) {
             "createRoom",
 
         plane:
-            plane
+            Number(plane) || 0
 
     });
-
 }
 
 
-/* =========================================================
+/* =====================================================
    UNIRSE POR CÓDIGO
-========================================================= */
+===================================================== */
 
-function joinRoom(
-    roomCode,
-    plane = AIR_FLIGHT.plane
-) {
+function joinRoom(roomCode, plane = AF.plane) {
 
     if (!roomCode) {
 
+        showMessage(
+            "Ingresá un código de sala"
+        );
+
         return;
-
     }
-
 
     sendMessage({
 
@@ -862,25 +658,24 @@ function joinRoom(
             "joinRoom",
 
         room:
-            String(roomCode)
-                .trim()
-                .toUpperCase(),
+            String(
+                roomCode
+            )
+            .trim()
+            .toUpperCase(),
 
         plane:
-            plane
+            Number(plane) || 0
 
     });
-
 }
 
 
-/* =========================================================
-   BUSCAR PARTIDA AL AZAR
-========================================================= */
+/* =====================================================
+   PARTIDA AL AZAR
+===================================================== */
 
-function findMatch(
-    plane = AIR_FLIGHT.plane
-) {
+function findMatch(plane = AF.plane) {
 
     sendMessage({
 
@@ -888,20 +683,17 @@ function findMatch(
             "findMatch",
 
         plane:
-            plane
+            Number(plane) || 0
 
     });
-
 }
 
 
-/* =========================================================
-   JOIN
-========================================================= */
+/* =====================================================
+   JOIN GENERAL
+===================================================== */
 
-function joinMultiplayer(
-    plane = AIR_FLIGHT.plane
-) {
+function joinMultiplayer(plane = AF.plane) {
 
     sendMessage({
 
@@ -909,27 +701,17 @@ function joinMultiplayer(
             "join",
 
         plane:
-            plane
+            Number(plane) || 0
 
     });
-
 }
 
 
-/* =========================================================
+/* =====================================================
    SALIR DE SALA
-========================================================= */
+===================================================== */
 
 function leaveRoom() {
-
-    if (
-        !AIR_FLIGHT.room
-    ) {
-
-        return;
-
-    }
-
 
     sendMessage({
 
@@ -937,134 +719,128 @@ function leaveRoom() {
             "leaveRoom"
 
     });
-
 }
 
 
-/* =========================================================
+/* =====================================================
    SALA CREADA
-========================================================= */
+===================================================== */
 
 function handleRoomCreated(data) {
 
-    AIR_FLIGHT.room =
-        data.room || null;
+    AF.roomCode =
+        data.room ||
+        null;
 
-    AIR_FLIGHT.isHost =
-        Boolean(data.host);
+    AF.isHost =
+        data.host === true;
 
-    AIR_FLIGHT.gameState =
+    AF.gameState =
         "waiting";
 
-
-    log(
-        "🏠 Sala creada:",
-        AIR_FLIGHT.room
+    showRoomCode(
+        AF.roomCode
     );
 
+    saveSession();
 
-    updateRoomUI();
-
+    showMessage(
+        "🏠 Sala creada"
+    );
 }
 
 
-/* =========================================================
+/* =====================================================
    SALA UNIDA
-========================================================= */
+===================================================== */
 
 function handleRoomJoined(data) {
 
-    AIR_FLIGHT.room =
-        data.room || null;
+    AF.roomCode =
+        data.room ||
+        null;
 
-    AIR_FLIGHT.isHost =
-        Boolean(data.host);
+    AF.isHost =
+        data.host === true;
 
-    AIR_FLIGHT.gameState =
+    AF.gameState =
         data.gameState ||
         "waiting";
 
-
-    log(
-        "👥 Unido a sala:",
-        AIR_FLIGHT.room
+    showRoomCode(
+        AF.roomCode
     );
 
-
-    updateRoomUI();
-
-}
-
-
-/* =========================================================
-   ERROR DE SALA
-========================================================= */
-
-function handleRoomError(data) {
-
-    warn(
-        "Error de sala:",
-        data.message
-    );
-
+    saveSession();
 
     showMessage(
-        data.message ||
-        "Error en la sala."
+        "👥 Te uniste a la sala"
     );
-
 }
 
 
-/* =========================================================
-   PARTIDA PÚBLICA CREADA
-========================================================= */
+/* =====================================================
+   MOSTRAR CÓDIGO
+===================================================== */
 
-function handlePublicMatchCreated(data) {
+function showRoomCode(code) {
 
-    AIR_FLIGHT.room =
-        data.room || null;
+    if (!code) {
+        return;
+    }
 
-    AIR_FLIGHT.gameState =
-        "waiting";
+    const elements = [
 
+        getElement(
+            "roomCode",
+            "room-code",
+            "multiplayerRoomCode"
+        )
 
-    log(
-        "🎮 Sala pública:",
-        AIR_FLIGHT.room
-    );
+    ].filter(Boolean);
 
+    for (const element of elements) {
 
-    updateRoomUI();
+        element.textContent =
+            code;
 
+        if (
+            "value" in element
+        ) {
+            element.value =
+                code;
+        }
+    }
 }
 
 
-/* =========================================================
-   JUGADORES DE LA SALA
-========================================================= */
+/* =====================================================
+   ESTADO COMPLETO DE JUGADORES
+===================================================== */
 
 function handleRoomPlayers(data) {
 
-    AIR_FLIGHT.room =
+    AF.roomCode =
         data.room ||
-        AIR_FLIGHT.room;
+        AF.roomCode;
 
-    AIR_FLIGHT.gameState =
+    AF.gameState =
         data.gameState ||
-        AIR_FLIGHT.gameState;
+        AF.gameState;
 
-    AIR_FLIGHT.timeRemaining =
+    AF.timeRemaining =
         Number(
-            data.timeRemaining || 0
-        );
+            data.timeRemaining
+        ) || 0;
 
 
-    AIR_FLIGHT.players.clear();
+    AF.players.clear();
 
 
     if (
-        Array.isArray(data.players)
+        Array.isArray(
+            data.players
+        )
     ) {
 
         for (
@@ -1073,36 +849,30 @@ function handleRoomPlayers(data) {
         ) {
 
             if (
-                player &&
-                player.id
+                !player ||
+                !player.id
             ) {
-
-                AIR_FLIGHT.players.set(
-                    player.id,
-                    normalizePlayer(
-                        player
-                    )
-                );
-
+                continue;
             }
 
+            AF.players.set(
+                player.id,
+                normalizePlayer(
+                    player
+                )
+            );
         }
-
     }
 
+    renderPlayers();
 
-    updatePlayers();
-
-    updateHUD();
-
-    updateRoomUI();
-
+    updateMatchUI();
 }
 
 
-/* =========================================================
+/* =====================================================
    NORMALIZAR JUGADOR
-========================================================= */
+===================================================== */
 
 function normalizePlayer(player) {
 
@@ -1112,131 +882,142 @@ function normalizePlayer(player) {
             player.id,
 
         x:
-            Number(player.x || 0),
+            Number(
+                player.x
+            ) || 0,
 
         y:
-            Number(player.y || 0),
+            Number(
+                player.y
+            ) || 0,
 
         z:
-            Number(player.z || 0),
+            Number(
+                player.z
+            ) || 0,
 
         rotationX:
-            Number(player.rotationX || 0),
+            Number(
+                player.rotationX
+            ) || 0,
 
         rotationY:
-            Number(player.rotationY || 0),
+            Number(
+                player.rotationY
+            ) || 0,
 
         rotationZ:
-            Number(player.rotationZ || 0),
+            Number(
+                player.rotationZ
+            ) || 0,
 
         plane:
-            Number(player.plane || 0),
+            Number(
+                player.plane
+            ) || 0,
 
         maxHealth:
-            Number(player.maxHealth || 100),
+            Number(
+                player.maxHealth
+            ) || 100,
 
         health:
-            Number(player.health || 0),
+            Number(
+                player.health
+            ),
 
         alive:
-            Boolean(player.alive),
+            player.alive !== false,
 
         kills:
-            Number(player.kills || 0),
+            Number(
+                player.kills
+            ) || 0,
 
         deaths:
-            Number(player.deaths || 0),
+            Number(
+                player.deaths
+            ) || 0,
 
         score:
-            Number(player.score || 0),
+            Number(
+                player.score
+            ) || 0,
 
         connected:
             player.connected !== false
 
     };
-
 }
 
 
-/* =========================================================
-   HOST
-========================================================= */
-
-function handleRoomHost(data) {
-
-    AIR_FLIGHT.isHost =
-        data.room ===
-        AIR_FLIGHT.room;
-
-
-    updateRoomUI();
-
-}
-
-
-/* =========================================================
-   JUGADOR ENTRÓ
-========================================================= */
+/* =====================================================
+   JUGADOR ENTRA
+===================================================== */
 
 function handlePlayerJoined(data) {
 
-    if (
-        !data.id
-    ) {
-
+    if (!data.id) {
         return;
-
     }
 
-
-    let player =
-        AIR_FLIGHT.players.get(
+    const existing =
+        AF.players.get(
             data.id
-        );
-
-
-    if (!player) {
-
-        player = normalizePlayer({
+        ) || {
 
             id:
                 data.id,
 
+            x: 0,
+            y: 0,
+            z: 0,
+
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: 0,
+
             plane:
-                data.plane || 0
+                Number(
+                    data.plane
+                ) || 0,
 
-        });
+            maxHealth: 100,
+            health: 100,
 
-    }
+            alive: true,
 
+            kills: 0,
+            deaths: 0,
+            score: 0,
 
-    player.connected = true;
-
-
-    if (
-        data.plane !== undefined
-    ) {
-
-        player.plane =
-            Number(data.plane);
-
-    }
+            connected: true
+        };
 
 
-    AIR_FLIGHT.players.set(
+    existing.plane =
+        Number(
+            data.plane
+        ) || existing.plane;
+
+
+    AF.players.set(
         data.id,
-        player
+        existing
     );
 
 
-    updatePlayers();
+    renderPlayers();
 
+    showMessage(
+        "👤 Un jugador se unió"
+    );
 }
 
 
-/* =========================================================
-   JUGADOR SALIÓ
-========================================================= */
+/* =====================================================
+   JUGADOR SALE
+===================================================== */
 
 function handlePlayerLeft(data) {
 
@@ -1244,78 +1025,379 @@ function handlePlayerLeft(data) {
         return;
     }
 
-
-    AIR_FLIGHT.players.delete(
+    removeRemotePlayer(
         data.id
     );
 
-
-    updatePlayers();
-
+    showMessage(
+        "👋 Un jugador salió"
+    );
 }
 
 
-/* =========================================================
+/* =====================================================
    JUGADOR DESCONECTADO
-========================================================= */
+===================================================== */
 
 function handlePlayerDisconnected(data) {
 
     const player =
-        AIR_FLIGHT.players.get(
+        AF.players.get(
             data.id
         );
 
-
     if (player) {
 
-        player.connected = false;
-
-        AIR_FLIGHT.players.set(
-            data.id,
-            player
-        );
-
+        player.connected =
+            false;
     }
 
-
-    updatePlayers();
-
+    renderPlayers();
 }
 
 
-/* =========================================================
+/* =====================================================
    JUGADOR RECONECTADO
-========================================================= */
+===================================================== */
 
 function handlePlayerReconnected(data) {
 
     const player =
-        AIR_FLIGHT.players.get(
+        AF.players.get(
             data.id
         );
 
-
     if (player) {
 
-        player.connected = true;
-
-        AIR_FLIGHT.players.set(
-            data.id,
-            player
-        );
-
+        player.connected =
+            true;
     }
 
-
-    updatePlayers();
-
+    renderPlayers();
 }
 
 
-/* =========================================================
-   ACTUALIZAR JUGADOR
-========================================================= */
+/* =====================================================
+   CAMBIO DE HOST
+===================================================== */
+
+function handleRoomHost(data) {
+
+    AF.isHost =
+        true;
+
+    showMessage(
+        "👑 Ahora sos el creador de la sala"
+    );
+}
+
+
+/* =====================================================
+   SALIÓ DE SALA
+===================================================== */
+
+function handleLeftRoom() {
+
+    AF.roomCode =
+        null;
+
+    AF.isHost =
+        false;
+
+    AF.gameState =
+        "waiting";
+
+    AF.players.clear();
+
+    AF.missiles.clear();
+
+    showMessage(
+        "Saliste de la sala"
+    );
+
+    updateMatchUI();
+
+    clearSessionRoom();
+}
+
+
+/* =====================================================
+   PARTIDA PÚBLICA
+===================================================== */
+
+function handlePublicMatchCreated(data) {
+
+    if (data.room) {
+
+        AF.roomCode =
+            data.room;
+
+        showRoomCode(
+            data.room
+        );
+
+        saveSession();
+    }
+}
+
+
+/* =====================================================
+   ERROR DE SALA
+===================================================== */
+
+function handleRoomError(data) {
+
+    showMessage(
+        "⚠️ " +
+        (
+            data.message ||
+            "Error de sala"
+        )
+    );
+
+    console.warn(
+        "Room error:",
+        data.message
+    );
+}
+
+
+/* =====================================================
+   PARTIDA INICIADA
+===================================================== */
+
+function handleGameStarted(data) {
+
+    AF.gameState =
+        "playing";
+
+    AF.matchNumber =
+        Number(
+            data.matchNumber
+        ) || 0;
+
+    AF.matchDuration =
+        Number(
+            data.duration
+        ) ||
+        5 * 60 * 1000;
+
+    AF.timeRemaining =
+        Number(
+            data.timeRemaining
+        ) ||
+        AF.matchDuration;
+
+
+    AF.health =
+        AF.maxHealth;
+
+    AF.alive =
+        true;
+
+    AF.kills =
+        0;
+
+    AF.deaths =
+        0;
+
+    AF.score =
+        0;
+
+
+    AF.missiles.clear();
+
+    updateHealthUI();
+
+    updateStatsUI();
+
+    updateMatchUI();
+
+    showMessage(
+        "🚀 ¡Partida iniciada!"
+    );
+
+
+    /*
+       Avisamos al código principal
+       del juego.
+    */
+
+    dispatchGameEvent(
+        "airflight:gameStarted",
+        data
+    );
+}
+
+
+/* =====================================================
+   PARTIDA EN ESPERA
+===================================================== */
+
+function handleGameWaiting(data) {
+
+    AF.gameState =
+        "waiting";
+
+    AF.timeRemaining =
+        0;
+
+    updateMatchUI();
+
+    showMessage(
+        data.reason ||
+        "Esperando jugadores..."
+    );
+}
+
+
+/* =====================================================
+   TIEMPO DE PARTIDA
+===================================================== */
+
+function handleMatchTime(data) {
+
+    AF.timeRemaining =
+        Math.max(
+            0,
+            Number(
+                data.timeRemaining
+            ) || 0
+        );
+
+    updateMatchUI();
+}
+
+
+/* =====================================================
+   FINAL DE PARTIDA
+===================================================== */
+
+function handleGameEnded(data) {
+
+    AF.gameState =
+        "finished";
+
+    AF.timeRemaining =
+        0;
+
+    AF.missiles.clear();
+
+    updateMatchUI();
+
+    renderRanking(
+        data.ranking || []
+    );
+
+    showMessage(
+        "🏁 ¡Partida terminada!"
+    );
+
+    dispatchGameEvent(
+        "airflight:gameEnded",
+        data
+    );
+}
+
+
+/* =====================================================
+   INICIAR PARTIDA
+===================================================== */
+
+function startMatch() {
+
+    sendMessage({
+
+        type:
+            "startMatch"
+
+    });
+}
+
+
+/* =====================================================
+   ACTUALIZAR JUGADOR LOCAL
+===================================================== */
+
+function sendPlayerUpdate(
+    state
+) {
+
+    if (!AF.connected) {
+        return;
+    }
+
+    if (!AF.playerId) {
+        return;
+    }
+
+    const now =
+        Date.now();
+
+    if (
+        now -
+        AF.lastPlayerUpdate <
+        AF.playerUpdateInterval
+    ) {
+        return;
+    }
+
+    AF.lastPlayerUpdate =
+        now;
+
+
+    const data = {
+
+        type:
+            "playerUpdate",
+
+        x:
+            Number(
+                state.x
+            ) || 0,
+
+        y:
+            Number(
+                state.y
+            ) || 0,
+
+        z:
+            Number(
+                state.z
+            ) || 0,
+
+        rotationX:
+            Number(
+                state.rotationX
+            ) || 0,
+
+        rotationY:
+            Number(
+                state.rotationY
+            ) || 0,
+
+        rotationZ:
+            Number(
+                state.rotationZ
+            ) || 0,
+
+        plane:
+            Number(
+                state.plane
+            ) || AF.plane
+
+    };
+
+
+    sendMessage(
+        data
+    );
+}
+
+
+/* =====================================================
+   RECIBIR MOVIMIENTO DE OTRO JUGADOR
+===================================================== */
 
 function handlePlayerUpdate(data) {
 
@@ -1323,549 +1405,184 @@ function handlePlayerUpdate(data) {
         return;
     }
 
-
     if (
         data.id ===
-        AIR_FLIGHT.id
+        AF.playerId
     ) {
-
         return;
-
     }
 
 
-    const oldPlayer =
-        AIR_FLIGHT.players.get(
+    const player =
+        AF.players.get(
             data.id
-        ) || normalizePlayer({
+        ) || {
 
             id:
-                data.id
+                data.id,
 
-        });
+            x: 0,
+            y: 0,
+            z: 0,
 
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: 0,
 
-    oldPlayer.x =
-        Number(data.x || 0);
+            plane: 0,
 
-    oldPlayer.y =
-        Number(data.y || 0);
+            maxHealth: 100,
+            health: 100,
 
-    oldPlayer.z =
-        Number(data.z || 0);
+            alive: true,
 
-    oldPlayer.rotationX =
-        Number(data.rotationX || 0);
+            kills: 0,
+            deaths: 0,
+            score: 0,
 
-    oldPlayer.rotationY =
-        Number(data.rotationY || 0);
-
-    oldPlayer.rotationZ =
-        Number(data.rotationZ || 0);
-
-    oldPlayer.plane =
-        Number(data.plane || 0);
-
-    oldPlayer.maxHealth =
-        Number(data.maxHealth || 100);
-
-    oldPlayer.health =
-        Number(data.health || 0);
-
-    oldPlayer.alive =
-        Boolean(data.alive);
-
-    oldPlayer.kills =
-        Number(data.kills || 0);
-
-    oldPlayer.deaths =
-        Number(data.deaths || 0);
-
-    oldPlayer.score =
-        Number(data.score || 0);
+            connected: true
+        };
 
 
-    AIR_FLIGHT.players.set(
+    player.x =
+        Number(
+            data.x
+        ) || 0;
+
+    player.y =
+        Number(
+            data.y
+        ) || 0;
+
+    player.z =
+        Number(
+            data.z
+        ) || 0;
+
+    player.rotationX =
+        Number(
+            data.rotationX
+        ) || 0;
+
+    player.rotationY =
+        Number(
+            data.rotationY
+        ) || 0;
+
+    player.rotationZ =
+        Number(
+            data.rotationZ
+        ) || 0;
+
+    player.plane =
+        Number(
+            data.plane
+        ) || 0;
+
+    player.maxHealth =
+        Number(
+            data.maxHealth
+        ) || 100;
+
+    player.health =
+        Number(
+            data.health
+        );
+
+    player.alive =
+        data.alive !== false;
+
+    player.kills =
+        Number(
+            data.kills
+        ) || 0;
+
+    player.deaths =
+        Number(
+            data.deaths
+        ) || 0;
+
+    player.score =
+        Number(
+            data.score
+        ) || 0;
+
+
+    AF.players.set(
         data.id,
-        oldPlayer
+        player
     );
 
 
-    updateRemotePlayer(
-        oldPlayer
+    dispatchGameEvent(
+        "airflight:playerUpdate",
+        player
     );
-
-
-    updateHUD();
-
 }
 
 
-/* =========================================================
-   PARTIDA INICIADA
-========================================================= */
+/* =====================================================
+   DISPARAR MISIL
+===================================================== */
 
-function handleGameStarted(data) {
+function fireMissile(data) {
 
-    AIR_FLIGHT.gameState =
-        "playing";
-
-    AIR_FLIGHT.matchNumber =
-        Number(
-            data.matchNumber || 0
-        );
-
-    AIR_FLIGHT.timeRemaining =
-        Number(
-            data.timeRemaining ||
-            data.duration ||
-            0
-        );
-
-
-    log(
-        "🚀 PARTIDA INICIADA"
-    );
-
-
-    updateHUD();
-
-    updateGameState();
-
-}
-
-
-/* =========================================================
-   PARTIDA ESPERANDO
-========================================================= */
-
-function handleGameWaiting(data) {
-
-    AIR_FLIGHT.gameState =
-        "waiting";
-
-
-    AIR_FLIGHT.timeRemaining = 0;
-
-
-    log(
-        "⏳ Esperando jugadores:",
-        data.reason || ""
-    );
-
-
-    updateHUD();
-
-    updateGameState();
-
-}
-
-
-/* =========================================================
-   TIEMPO
-========================================================= */
-
-function handleMatchTime(data) {
-
-    AIR_FLIGHT.timeRemaining =
-        Number(
-            data.timeRemaining || 0
-        );
-
-
-    updateTimer();
-
-}
-
-
-/* =========================================================
-   FINAL DE PARTIDA
-========================================================= */
-
-function handleGameEnded(data) {
-
-    AIR_FLIGHT.gameState =
-        "finished";
-
-    AIR_FLIGHT.timeRemaining =
-        0;
-
-
-    log(
-        "🏁 PARTIDA TERMINADA"
-    );
-
-
-    if (
-        Array.isArray(data.ranking)
-    ) {
-
-        showRanking(
-            data.ranking
-        );
-
+    if (!AF.connected) {
+        return;
     }
 
-
-    updateHUD();
-
-    updateGameState();
-
-}
-
-
-/* =========================================================
-   DAÑO
-========================================================= */
-
-function handlePlayerDamaged(data) {
-
-    const player =
-        AIR_FLIGHT.players.get(
-            data.id
-        );
-
-
-    if (data.id === AIR_FLIGHT.id) {
-
-        AIR_FLIGHT.health =
-            Number(data.health || 0);
-
-        AIR_FLIGHT.maxHealth =
-            Number(
-                data.maxHealth ||
-                AIR_FLIGHT.maxHealth
-            );
-
-        AIR_FLIGHT.alive =
-            Boolean(data.alive);
-
+    if (!AF.alive) {
+        return;
     }
 
+    sendMessage({
 
-    if (player) {
-
-        player.health =
-            Number(data.health || 0);
-
-        player.maxHealth =
-            Number(
-                data.maxHealth ||
-                player.maxHealth
-            );
-
-        player.alive =
-            Boolean(data.alive);
-
-        AIR_FLIGHT.players.set(
-            data.id,
-            player
-        );
-
-    }
-
-
-    updateHealth();
-
-    updatePlayers();
-
-}
-
-
-/* =========================================================
-   JUGADOR DESTRUIDO
-========================================================= */
-
-function handlePlayerDestroyed(data) {
-
-    const player =
-        AIR_FLIGHT.players.get(
-            data.id
-        );
-
-
-    if (data.id === AIR_FLIGHT.id) {
-
-        AIR_FLIGHT.alive =
-            false;
-
-        AIR_FLIGHT.health =
-            0;
-
-    }
-
-
-    if (player) {
-
-        player.alive = false;
-
-        player.health = 0;
-
-        player.kills =
-            Number(
-                data.kills ||
-                player.kills
-            );
-
-        player.deaths =
-            Number(
-                data.deaths ||
-                player.deaths
-            );
-
-        player.score =
-            Number(
-                data.score ||
-                player.score
-            );
-
-        AIR_FLIGHT.players.set(
-            data.id,
-            player
-        );
-
-    }
-
-
-    updatePlayers();
-
-    updateHealth();
-
-}
-
-
-/* =========================================================
-   RESPAWN
-========================================================= */
-
-function handlePlayerRespawned(data) {
-
-    const playerData = {
-
-        id:
-            data.id,
+        type:
+            "fireMissile",
 
         x:
-            data.x,
+            Number(
+                data.x
+            ) || 0,
 
         y:
-            data.y,
+            Number(
+                data.y
+            ) || 0,
 
         z:
-            data.z,
+            Number(
+                data.z
+            ) || 0,
 
-        rotationX:
-            data.rotationX,
+        velocityX:
+            Number(
+                data.velocityX
+            ) || 0,
 
-        rotationY:
-            data.rotationY,
+        velocityY:
+            Number(
+                data.velocityY
+            ) || 0,
 
-        rotationZ:
-            data.rotationZ,
+        velocityZ:
+            Number(
+                data.velocityZ
+            ) || 0
 
-        maxHealth:
-            data.maxHealth,
-
-        health:
-            data.health,
-
-        alive:
-            data.alive,
-
-        kills:
-            data.kills,
-
-        deaths:
-            data.deaths,
-
-        score:
-            data.score
-
-    };
-
-
-    if (
-        data.id ===
-        AIR_FLIGHT.id
-    ) {
-
-        AIR_FLIGHT.position.x =
-            Number(data.x || 0);
-
-        AIR_FLIGHT.position.y =
-            Number(data.y || 0);
-
-        AIR_FLIGHT.position.z =
-            Number(data.z || 0);
-
-        AIR_FLIGHT.rotation.x =
-            Number(data.rotationX || 0);
-
-        AIR_FLIGHT.rotation.y =
-            Number(data.rotationY || 0);
-
-        AIR_FLIGHT.rotation.z =
-            Number(data.rotationZ || 0);
-
-        updateLocalStats(
-            data
-        );
-
-    }
-
-
-    AIR_FLIGHT.players.set(
-        data.id,
-        normalizePlayer(
-            playerData
-        )
-    );
-
-
-    updatePlayers();
-
+    });
 }
 
 
-/* =========================================================
-   SCORE UPDATE
-========================================================= */
-
-function handleScoreUpdate(data) {
-
-    if (
-        data.id ===
-        AIR_FLIGHT.id
-    ) {
-
-        AIR_FLIGHT.score =
-            Number(data.score || 0);
-
-        AIR_FLIGHT.kills =
-            Number(data.kills || 0);
-
-        AIR_FLIGHT.deaths =
-            Number(data.deaths || 0);
-
-    }
-
-
-    const player =
-        AIR_FLIGHT.players.get(
-            data.id
-        );
-
-
-    if (player) {
-
-        player.score =
-            Number(data.score || 0);
-
-        player.kills =
-            Number(data.kills || 0);
-
-        player.deaths =
-            Number(data.deaths || 0);
-
-        AIR_FLIGHT.players.set(
-            data.id,
-            player
-        );
-
-    }
-
-
-    updateHUD();
-
-    updatePlayers();
-
-}
-
-
-/* =========================================================
-   KILL CONFIRMADO
-========================================================= */
-
-function handleKillConfirmed(data) {
-
-    log(
-        "💥 Kill confirmado:",
-        data
-    );
-
-
-    if (
-        data.attackerId ===
-        AIR_FLIGHT.id
-    ) {
-
-        if (
-            data.attackerKills !==
-            null &&
-            data.attackerKills !==
-            undefined
-        ) {
-
-            AIR_FLIGHT.kills =
-                Number(
-                    data.attackerKills
-                );
-
-        }
-
-
-        if (
-            data.attackerScore !==
-            null &&
-            data.attackerScore !==
-            undefined
-        ) {
-
-            AIR_FLIGHT.score =
-                Number(
-                    data.attackerScore
-                );
-
-        }
-
-    }
-
-
-    if (
-        data.victimId ===
-        AIR_FLIGHT.id
-    ) {
-
-        if (
-            data.victimDeaths !==
-            undefined
-        ) {
-
-            AIR_FLIGHT.deaths =
-                Number(
-                    data.victimDeaths
-                );
-
-        }
-
-    }
-
-
-    updateHUD();
-
-}
-
-
-/* =========================================================
-   CREAR MISIL
-========================================================= */
+/* =====================================================
+   MISIL CREADO
+===================================================== */
 
 function handleMissileCreated(data) {
 
     if (!data.id) {
         return;
     }
-
 
     const missile = {
 
@@ -1876,121 +1593,106 @@ function handleMissileCreated(data) {
             data.ownerId,
 
         x:
-            Number(data.x || 0),
+            Number(
+                data.x
+            ) || 0,
 
         y:
-            Number(data.y || 0),
+            Number(
+                data.y
+            ) || 0,
 
         z:
-            Number(data.z || 0),
+            Number(
+                data.z
+            ) || 0,
 
         velocityX:
             Number(
-                data.velocityX || 0
-            ),
+                data.velocityX
+            ) || 0,
 
         velocityY:
             Number(
-                data.velocityY || 0
-            ),
+                data.velocityY
+            ) || 0,
 
         velocityZ:
             Number(
-                data.velocityZ || 0
-            )
+                data.velocityZ
+            ) || 0
 
     };
 
 
-    AIR_FLIGHT.missiles.set(
+    AF.missiles.set(
         data.id,
         missile
     );
 
 
-    createRemoteMissile(
+    dispatchGameEvent(
+        "airflight:missileCreated",
         missile
     );
-
-
 }
 
 
-/* =========================================================
+/* =====================================================
    ACTUALIZAR MISIL
-========================================================= */
+===================================================== */
 
 function handleMissileUpdate(data) {
 
     const missile =
-        AIR_FLIGHT.missiles.get(
+        AF.missiles.get(
             data.id
         );
 
-
     if (!missile) {
-
         return;
-
     }
 
 
     missile.x =
-        Number(data.x || 0);
+        Number(
+            data.x
+        ) || 0;
 
     missile.y =
-        Number(data.y || 0);
+        Number(
+            data.y
+        ) || 0;
 
     missile.z =
-        Number(data.z || 0);
+        Number(
+            data.z
+        ) || 0;
 
 
-    AIR_FLIGHT.missiles.set(
-        data.id,
+    dispatchGameEvent(
+        "airflight:missileUpdate",
         missile
     );
-
-
-    updateRemoteMissile(
-        missile
-    );
-
 }
 
 
-/* =========================================================
+/* =====================================================
    IMPACTO DE MISIL
-========================================================= */
+===================================================== */
 
 function handleMissileHit(data) {
 
-    log(
-        "💥 Misil impactó:",
-        data.targetId
+    dispatchGameEvent(
+        "airflight:missileHit",
+        data
     );
-
-
-    /*
-       El servidor es quien decide el daño.
-       Acá solamente actualizamos la representación.
-    */
-
-    if (
-        data.targetId ===
-        AIR_FLIGHT.id
-    ) {
-
-        updateHealth();
-
-    }
-
-
 }
 
 
-/* =========================================================
-   MISIL ELIMINADO
-========================================================= */
+/* =====================================================
+   ELIMINAR MISIL
+===================================================== */
 
 function handleMissileRemoved(data) {
 
@@ -1998,472 +1700,391 @@ function handleMissileRemoved(data) {
         return;
     }
 
-
-    AIR_FLIGHT.missiles.delete(
+    AF.missiles.delete(
         data.id
     );
 
 
-    removeRemoteMissile(
-        data.id
+    dispatchGameEvent(
+        "airflight:missileRemoved",
+        data
     );
-
 }
 
 
-/* =========================================================
-   SALIÓ DE SALA
-========================================================= */
+/* =====================================================
+   DAÑO AL JUGADOR
+===================================================== */
 
-function handleLeftRoom(data) {
+function handlePlayerDamaged(data) {
 
-    AIR_FLIGHT.room =
-        null;
+    const player =
+        AF.players.get(
+            data.id
+        );
 
-    AIR_FLIGHT.isHost =
-        false;
+    if (
+        data.id ===
+        AF.playerId
+    ) {
 
-    AIR_FLIGHT.gameState =
-        "waiting";
+        AF.health =
+            Number(
+                data.health
+            );
 
-    AIR_FLIGHT.players.clear();
+        AF.maxHealth =
+            Number(
+                data.maxHealth
+            ) || AF.maxHealth;
 
-    AIR_FLIGHT.missiles.clear();
+        AF.alive =
+            data.alive !== false;
+
+        updateHealthUI();
+
+    } else if (player) {
+
+        player.health =
+            Number(
+                data.health
+            );
+
+        player.maxHealth =
+            Number(
+                data.maxHealth
+            ) || player.maxHealth;
+
+        player.alive =
+            data.alive !== false;
+
+        renderPlayers();
+    }
 
 
-    updateRoomUI();
-
-    updatePlayers();
-
+    dispatchGameEvent(
+        "airflight:playerDamaged",
+        data
+    );
 }
 
 
-/* =========================================================
-   ERROR GENERAL
-========================================================= */
+/* =====================================================
+   JUGADOR DESTRUIDO
+===================================================== */
+
+function handlePlayerDestroyed(data) {
+
+    if (
+        data.id ===
+        AF.playerId
+    ) {
+
+        AF.health =
+            0;
+
+        AF.alive =
+            false;
+
+        AF.deaths =
+            Number(
+                data.deaths
+            ) || AF.deaths;
+
+        AF.score =
+            Number(
+                data.score
+            ) || AF.score;
+
+        updateHealthUI();
+
+        updateStatsUI();
+
+        showMessage(
+            "💥 Avión destruido"
+        );
+
+    } else {
+
+        const player =
+            AF.players.get(
+                data.id
+            );
+
+        if (player) {
+
+            player.health =
+                0;
+
+            player.alive =
+                false;
+        }
+
+        renderPlayers();
+    }
+
+
+    dispatchGameEvent(
+        "airflight:playerDestroyed",
+        data
+    );
+}
+
+
+/* =====================================================
+   RESPAWN
+===================================================== */
+
+function handlePlayerRespawned(data) {
+
+    if (
+        data.id ===
+        AF.playerId
+    ) {
+
+        AF.health =
+            Number(
+                data.health
+            );
+
+        AF.maxHealth =
+            Number(
+                data.maxHealth
+            ) || AF.maxHealth;
+
+        AF.alive =
+            true;
+
+        updateHealthUI();
+
+        showMessage(
+            "🔄 Avión reaparecido"
+        );
+
+    } else {
+
+        const player =
+            AF.players.get(
+                data.id
+            );
+
+        if (player) {
+
+            Object.assign(
+                player,
+                normalizePlayer(
+                    data
+                )
+            );
+        }
+
+        renderPlayers();
+    }
+
+
+    dispatchGameEvent(
+        "airflight:playerRespawned",
+        data
+    );
+}
+
+
+/* =====================================================
+   SCORE UPDATE
+===================================================== */
+
+function handleScoreUpdate(data) {
+
+    if (
+        data.id ===
+        AF.playerId
+    ) {
+
+        AF.score =
+            Number(
+                data.score
+            ) || 0;
+
+        AF.kills =
+            Number(
+                data.kills
+            ) || 0;
+
+        AF.deaths =
+            Number(
+                data.deaths
+            ) || 0;
+
+        updateStatsUI();
+
+        return;
+    }
+
+
+    const player =
+        AF.players.get(
+            data.id
+        );
+
+    if (player) {
+
+        player.score =
+            Number(
+                data.score
+            ) || 0;
+
+        player.kills =
+            Number(
+                data.kills
+            ) || 0;
+
+        player.deaths =
+            Number(
+                data.deaths
+            ) || 0;
+    }
+
+
+    renderPlayers();
+}
+
+
+/* =====================================================
+   KILL CONFIRMADO
+===================================================== */
+
+function handleKillConfirmed(data) {
+
+    if (
+        data.attackerId ===
+        AF.playerId
+    ) {
+
+        showMessage(
+            "💥 ¡KILL! +100"
+        );
+    }
+
+    if (
+        data.victimId ===
+        AF.playerId
+    ) {
+
+        showMessage(
+            "☠️ Fuiste derribado"
+        );
+    }
+
+
+    dispatchGameEvent(
+        "airflight:killConfirmed",
+        data
+    );
+}
+
+
+/* =====================================================
+   ERROR DEL SERVIDOR
+===================================================== */
 
 function handleServerError(data) {
 
-    error(
-        "Servidor:",
+    console.error(
+        "❌ Servidor:",
         data.message
     );
 
-
     showMessage(
-        data.message ||
-        "Error del servidor."
+        "⚠️ " +
+        (
+            data.message ||
+            "Error del servidor"
+        )
     );
-
 }
 
 
-/* =========================================================
-   ACTUALIZAR POSICIÓN LOCAL
-========================================================= */
+/* =====================================================
+   ENVIAR MENSAJE
+===================================================== */
 
-function updateLocalPosition(
-    x,
-    y,
-    z,
-    rotationX = AIR_FLIGHT.rotation.x,
-    rotationY = AIR_FLIGHT.rotation.y,
-    rotationZ = AIR_FLIGHT.rotation.z
-) {
-
-    AIR_FLIGHT.position.x =
-        Number(x) || 0;
-
-    AIR_FLIGHT.position.y =
-        Number(y) || 0;
-
-    AIR_FLIGHT.position.z =
-        Number(z) || 0;
-
-    AIR_FLIGHT.rotation.x =
-        Number(rotationX) || 0;
-
-    AIR_FLIGHT.rotation.y =
-        Number(rotationY) || 0;
-
-    AIR_FLIGHT.rotation.z =
-        Number(rotationZ) || 0;
-
-
-    sendPlayerUpdate();
-
-}
-
-
-/* =========================================================
-   ACTUALIZAR AVIÓN LOCAL AL SERVIDOR
-========================================================= */
-
-function sendPlayerUpdate(
-    force = false
-) {
-
-    const now =
-        Date.now();
-
+function sendMessage(data) {
 
     if (
-        !force &&
-        now -
-        AIR_FLIGHT.lastPositionSent <
-        AIR_FLIGHT.positionSendInterval
+        !AF.socket ||
+        AF.socket.readyState !==
+            WebSocket.OPEN
     ) {
 
-        return;
-
-    }
-
-
-    if (
-        !AIR_FLIGHT.room ||
-        !AIR_FLIGHT.alive
-    ) {
-
-        return;
-
-    }
-
-
-    AIR_FLIGHT.lastPositionSent =
-        now;
-
-
-    sendMessage({
-
-        type:
-            "playerUpdate",
-
-        x:
-            AIR_FLIGHT.position.x,
-
-        y:
-            AIR_FLIGHT.position.y,
-
-        z:
-            AIR_FLIGHT.position.z,
-
-        rotationX:
-            AIR_FLIGHT.rotation.x,
-
-        rotationY:
-            AIR_FLIGHT.rotation.y,
-
-        rotationZ:
-            AIR_FLIGHT.rotation.z,
-
-        plane:
-            AIR_FLIGHT.plane
-
-    });
-
-}
-
-
-/* =========================================================
-   CAMBIAR AVIÓN
-========================================================= */
-
-function setPlane(plane) {
-
-    const value =
-        Number(plane);
-
-
-    if (
-        !Number.isInteger(value) ||
-        value < 0 ||
-        value > 13
-    ) {
-
-        return;
-
-    }
-
-
-    AIR_FLIGHT.plane =
-        value;
-
-
-    if (
-        AIR_FLIGHT.room
-    ) {
-
-        sendPlayerUpdate(
-            true
+        console.warn(
+            "⚠️ WebSocket no conectado"
         );
 
+        return false;
     }
 
-}
+    try {
 
+        AF.socket.send(
+            JSON.stringify(
+                data
+            )
+        );
 
-/* =========================================================
-   DISPARAR MISIL
-========================================================= */
+        return true;
 
-function fireMissile(
-    x,
-    y,
-    z,
-    velocityX,
-    velocityY,
-    velocityZ
-) {
+    } catch (error) {
 
-    if (
-        !AIR_FLIGHT.room
-    ) {
+        console.error(
+            "❌ Error enviando mensaje:",
+            error
+        );
 
         return false;
-
     }
-
-
-    if (
-        !AIR_FLIGHT.alive
-    ) {
-
-        return false;
-
-    }
-
-
-    return sendMessage({
-
-        type:
-            "fireMissile",
-
-        x:
-            Number(x) || 0,
-
-        y:
-            Number(y) || 0,
-
-        z:
-            Number(z) || 0,
-
-        velocityX:
-            Number(velocityX) || 0,
-
-        velocityY:
-            Number(velocityY) || 0,
-
-        velocityZ:
-            Number(velocityZ) || 0
-
-    });
-
 }
 
 
-/* =========================================================
-   ELIMINAR MISIL PROPIO
-========================================================= */
+/* =====================================================
+   ACTUALIZAR VIDA
+===================================================== */
 
-function removeMissile(
-    missileId
-) {
+function updateHealthUI() {
 
-    if (!missileId) {
-        return;
-    }
+    const healthElements = [
 
-
-    sendMessage({
-
-        type:
-            "removeMissile",
-
-        id:
-            missileId
-
-    });
-
-}
-
-
-/* =========================================================
-   DAÑO DIRECTO
-========================================================= */
-
-function damagePlayer(
-    damage,
-    attackerId = null,
-    missileId = null
-) {
-
-    if (
-        !AIR_FLIGHT.room ||
-        !AIR_FLIGHT.alive
-    ) {
-
-        return;
-
-    }
-
-
-    const data = {
-
-        type:
-            "damagePlayer",
-
-        damage:
-            Number(damage) || 0
-
-    };
-
-
-    if (attackerId) {
-
-        data.attackerId =
-            String(attackerId);
-
-    }
-
-
-    if (missileId) {
-
-        data.missileId =
-            String(missileId);
-
-    }
-
-
-    sendMessage(data);
-
-}
-
-
-/* =========================================================
-   INICIAR PARTIDA
-========================================================= */
-
-function startMatch() {
-
-    if (
-        !AIR_FLIGHT.room
-    ) {
-
-        return;
-
-    }
-
-
-    sendMessage({
-
-        type:
-            "startMatch"
-
-    });
-
-}
-
-
-/* =========================================================
-   SOLICITAR ESTADO
-========================================================= */
-
-function requestRoomState() {
-
-    if (
-        !AIR_FLIGHT.room
-    ) {
-
-        return;
-
-    }
-
-
-    /*
-       El server actualiza el estado mediante
-       roomPlayers después de acciones.
-    */
-
-    sendMessage({
-
-        type:
-            "join",
-
-        plane:
-            AIR_FLIGHT.plane
-
-    });
-
-}
-
-
-/* =========================================================
-   UI
-========================================================= */
-
-function updateHUD() {
-
-    updateHealth();
-
-    updateTimer();
-
-    updateScore();
-
-    updateKills();
-
-    updateDeaths();
-
-}
-
-
-function updateHealth() {
-
-    const elements = [
-
-        document.getElementById(
-            "health"
-        ),
-
-        document.getElementById(
+        getElement(
+            "health",
+            "healthValue",
             "playerHealth"
-        ),
-
-        document.getElementById(
-            "healthValue"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
         const element
-        of elements
+        of healthElements
     ) {
 
-        if (element) {
-
-            element.textContent =
-                Math.max(
-                    0,
-                    AIR_FLIGHT.health
-                );
-
-        }
-
+        element.textContent =
+            Math.max(
+                0,
+                Math.round(
+                    AF.health
+                )
+            );
     }
 
 
     const bars = [
 
-        document.getElementById(
-            "healthBar"
-        ),
-
-        document.getElementById(
+        getElement(
+            "healthBar",
             "playerHealthBar"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
@@ -2471,19 +2092,13 @@ function updateHealth() {
         of bars
     ) {
 
-        if (!bar) {
-            continue;
-        }
-
-
         const percentage =
-            AIR_FLIGHT.maxHealth > 0
+            AF.maxHealth > 0
                 ? (
-                    AIR_FLIGHT.health /
-                    AIR_FLIGHT.maxHealth
+                    AF.health /
+                    AF.maxHealth
                 ) * 100
                 : 0;
-
 
         bar.style.width =
             Math.max(
@@ -2493,458 +2108,204 @@ function updateHealth() {
                     percentage
                 )
             ) + "%";
-
     }
-
 }
 
 
-function updateTimer() {
+/* =====================================================
+   ESTADÍSTICAS
+===================================================== */
 
-    const seconds =
-        Math.ceil(
-            Math.max(
-                0,
-                AIR_FLIGHT.timeRemaining
-            ) / 1000
-        );
+function updateStatsUI() {
 
+    const scoreElements = [
 
-    const minutes =
-        Math.floor(
-            seconds / 60
-        );
-
-
-    const remainingSeconds =
-        seconds % 60;
-
-
-    const text =
-        String(minutes)
-            .padStart(2, "0") +
-        ":" +
-        String(remainingSeconds)
-            .padStart(2, "0");
-
-
-    const elements = [
-
-        document.getElementById(
-            "timer"
-        ),
-
-        document.getElementById(
-            "matchTimer"
-        ),
-
-        document.getElementById(
-            "timeRemaining"
-        )
-
-    ];
-
-
-    for (
-        const element
-        of elements
-    ) {
-
-        if (element) {
-
-            element.textContent =
-                text;
-
-        }
-
-    }
-
-}
-
-
-function updateScore() {
-
-    const elements = [
-
-        document.getElementById(
-            "score"
-        ),
-
-        document.getElementById(
+        getElement(
+            "score",
+            "scoreValue",
             "playerScore"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
         const element
-        of elements
+        of scoreElements
     ) {
 
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.score;
-
-        }
-
+        element.textContent =
+            AF.score;
     }
 
-}
 
+    const killElements = [
 
-function updateKills() {
-
-    const elements = [
-
-        document.getElementById(
-            "kills"
-        ),
-
-        document.getElementById(
+        getElement(
+            "kills",
+            "killsValue",
             "playerKills"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
         const element
-        of elements
+        of killElements
     ) {
 
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.kills;
-
-        }
-
+        element.textContent =
+            AF.kills;
     }
 
-}
 
+    const deathElements = [
 
-function updateDeaths() {
-
-    const elements = [
-
-        document.getElementById(
-            "deaths"
-        ),
-
-        document.getElementById(
+        getElement(
+            "deaths",
+            "deathsValue",
             "playerDeaths"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
         const element
-        of elements
+        of deathElements
     ) {
 
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.deaths;
-
-        }
-
+        element.textContent =
+            AF.deaths;
     }
-
 }
 
 
-/* =========================================================
-   ACTUALIZAR UI DE SALA
-========================================================= */
+/* =====================================================
+   TIEMPO
+===================================================== */
 
-function updateRoomUI() {
+function formatTime(milliseconds) {
 
-    const roomElements = [
+    const totalSeconds =
+        Math.ceil(
+            Math.max(
+                0,
+                milliseconds
+            ) / 1000
+        );
 
-        document.getElementById(
-            "roomCode"
-        ),
+    const minutes =
+        Math.floor(
+            totalSeconds / 60
+        );
 
-        document.getElementById(
-            "room"
-        ),
+    const seconds =
+        totalSeconds % 60;
 
-        document.getElementById(
-            "roomCodeDisplay"
-        )
-
-    ];
-
-
-    for (
-        const element
-        of roomElements
-    ) {
-
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.room ||
-                "Sin sala";
-
-        }
-
-    }
-
-
-    const hostElements = [
-
-        document.getElementById(
-            "hostStatus"
-        ),
-
-        document.getElementById(
-            "roomHost"
-        )
-
-    ];
-
-
-    for (
-        const element
-        of hostElements
-    ) {
-
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.isHost
-                    ? "HOST"
-                    : "";
-
-        }
-
-    }
-
+    return (
+        String(minutes)
+            .padStart(2, "0") +
+        ":" +
+        String(seconds)
+            .padStart(2, "0")
+    );
 }
 
 
-/* =========================================================
-   ESTADO DE PARTIDA
-========================================================= */
+/* =====================================================
+   ACTUALIZAR UI DE PARTIDA
+===================================================== */
 
-function updateGameState() {
+function updateMatchUI() {
 
-    const elements = [
+    const time =
+        formatTime(
+            AF.timeRemaining
+        );
 
-        document.getElementById(
-            "gameState"
-        ),
 
-        document.getElementById(
+    const timeElements = [
+
+        getElement(
+            "matchTime",
+            "timer",
+            "timeRemaining"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const element
+        of timeElements
+    ) {
+
+        element.textContent =
+            time;
+    }
+
+
+    const stateElements = [
+
+        getElement(
+            "gameState",
             "matchState"
         )
 
-    ];
+    ].filter(Boolean);
 
 
     for (
         const element
-        of elements
-    ) {
-
-        if (element) {
-
-            element.textContent =
-                AIR_FLIGHT.gameState;
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   MOSTRAR MENSAJE
-========================================================= */
-
-function showMessage(message) {
-
-    log(
-        "💬",
-        message
-    );
-
-
-    const element =
-        document.getElementById(
-            "serverMessage"
-        );
-
-
-    if (element) {
-
-        element.textContent =
-            message;
-
-    }
-
-}
-
-
-/* =========================================================
-   JUGADORES REMOTOS
-========================================================= */
-
-function updatePlayers() {
-
-    for (
-        const [
-            id,
-            player
-        ]
-        of AIR_FLIGHT.players
+        of stateElements
     ) {
 
         if (
-            id === AIR_FLIGHT.id
+            AF.gameState ===
+            "playing"
         ) {
 
-            continue;
+            element.textContent =
+                "EN PARTIDA";
 
+        } else if (
+            AF.gameState ===
+            "finished"
+        ) {
+
+            element.textContent =
+                "FINALIZADA";
+
+        } else {
+
+            element.textContent =
+                "ESPERANDO";
         }
-
-
-        updateRemotePlayer(
-            player
-        );
-
     }
-
 }
 
 
-/* =========================================================
-   ACTUALIZAR AVIÓN REMOTO
-========================================================= */
-
-function updateRemotePlayer(player) {
-
-    /*
-       Esta función queda preparada para
-       conectarse con el sistema visual
-       de tu index.html.
-
-       Si tu juego crea los aviones mediante
-       otras funciones, podés usar:
-
-       window.updateRemotePlane(player)
-
-    */
-
-    if (
-        typeof window.updateRemotePlane ===
-        "function"
-    ) {
-
-        window.updateRemotePlane(
-            player
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   CREAR MISIL REMOTO
-========================================================= */
-
-function createRemoteMissile(missile) {
-
-    if (
-        typeof window.createMissileFromServer ===
-        "function"
-    ) {
-
-        window.createMissileFromServer(
-            missile
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   ACTUALIZAR MISIL REMOTO
-========================================================= */
-
-function updateRemoteMissile(missile) {
-
-    if (
-        typeof window.updateMissileFromServer ===
-        "function"
-    ) {
-
-        window.updateMissileFromServer(
-            missile
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   ELIMINAR MISIL REMOTO
-========================================================= */
-
-function removeRemoteMissile(id) {
-
-    if (
-        typeof window.removeMissileFromServer ===
-        "function"
-    ) {
-
-        window.removeMissileFromServer(
-            id
-        );
-
-    }
-
-}
-
-
-/* =========================================================
+/* =====================================================
    RANKING
-========================================================= */
+===================================================== */
 
-function showRanking(ranking) {
+function renderRanking(ranking) {
 
-    log(
-        "🏆 RANKING:"
-    );
-
-
-    console.table(
-        ranking
-    );
-
-
-    const element =
-        document.getElementById(
-            "ranking"
+    const container =
+        getElement(
+            "ranking",
+            "rankingList",
+            "finalRanking"
         );
 
-
-    if (!element) {
+    if (!container) {
         return;
     }
 
 
-    element.innerHTML = "";
+    container.innerHTML = "";
 
 
     for (
@@ -2958,118 +2319,175 @@ function showRanking(ranking) {
             );
 
 
+        row.className =
+            "ranking-row";
+
+
         row.textContent =
             "#" +
             player.position +
-            " — " +
-            player.id +
             " | " +
             player.score +
-            " pts | Kills: " +
+            " puntos | " +
             player.kills +
-            " | Muertes: " +
-            player.deaths;
+            " kills | " +
+            player.deaths +
+            " muertes";
 
 
-        element.appendChild(
+        container.appendChild(
             row
         );
-
     }
-
 }
 
 
-/* =========================================================
+/* =====================================================
+   JUGADORES REMOTOS
+===================================================== */
+
+function renderPlayers() {
+
+    /*
+       Esta función mantiene el estado
+       de los jugadores.
+
+       El código 3D puede usar:
+
+       AIR_FLIGHT.players
+
+       para crear/mover los aviones.
+    */
+
+    dispatchGameEvent(
+        "airflight:playersUpdated",
+        Array.from(
+            AF.players.values()
+        )
+    );
+}
+
+
+/* =====================================================
+   ELIMINAR JUGADOR REMOTO
+===================================================== */
+
+function removeRemotePlayer(id) {
+
+    AF.players.delete(
+        id
+    );
+
+
+    dispatchGameEvent(
+        "airflight:playerRemoved",
+        {
+            id:
+                id
+        }
+    );
+
+
+    renderPlayers();
+}
+
+
+/* =====================================================
+   EVENTOS PARA EL CÓDIGO DEL JUEGO
+===================================================== */
+
+function dispatchGameEvent(
+    name,
+    detail
+) {
+
+    try {
+
+        window.dispatchEvent(
+            new CustomEvent(
+                name,
+                {
+                    detail:
+                        detail
+                }
+            )
+        );
+
+    } catch {
+        /* Navegadores antiguos */
+    }
+}
+
+
+/* =====================================================
    GUARDAR SESIÓN
-========================================================= */
+===================================================== */
 
 function saveSession() {
 
     try {
 
-        if (
-            AIR_FLIGHT.id
-        ) {
-
-            localStorage.setItem(
-                "airFlightPlayerId",
-                AIR_FLIGHT.id
-            );
-
-        }
-
-
-        if (
-            AIR_FLIGHT.reconnectToken
-        ) {
-
-            localStorage.setItem(
-                "airFlightReconnectToken",
-                AIR_FLIGHT.reconnectToken
-            );
-
-        }
-
-    } catch (err) {
-
-        warn(
-            "No se pudo guardar sesión."
+        localStorage.setItem(
+            "airFlightPlayerId",
+            AF.playerId || ""
         );
 
-    }
+        localStorage.setItem(
+            "airFlightReconnectToken",
+            AF.reconnectToken || ""
+        );
 
+        localStorage.setItem(
+            "airFlightRoom",
+            AF.roomCode || ""
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "No se pudo guardar sesión:",
+            error
+        );
+    }
 }
 
 
-/* =========================================================
+/* =====================================================
    CARGAR SESIÓN
-========================================================= */
+===================================================== */
 
 function loadSession() {
 
     try {
 
-        const id =
+        AF.playerId =
             localStorage.getItem(
                 "airFlightPlayerId"
-            );
+            ) || null;
 
-        const token =
+        AF.reconnectToken =
             localStorage.getItem(
                 "airFlightReconnectToken"
-            );
+            ) || null;
 
+        AF.roomCode =
+            localStorage.getItem(
+                "airFlightRoom"
+            ) || null;
 
-        if (id) {
+    } catch (error) {
 
-            AIR_FLIGHT.id =
-                id;
-
-        }
-
-
-        if (token) {
-
-            AIR_FLIGHT.reconnectToken =
-                token;
-
-        }
-
-    } catch (err) {
-
-        warn(
-            "No se pudo cargar sesión."
+        console.warn(
+            "No se pudo cargar sesión:",
+            error
         );
-
     }
-
 }
 
 
-/* =========================================================
-   BORRAR SESIÓN
-========================================================= */
+/* =====================================================
+   LIMPIAR SESIÓN
+===================================================== */
 
 function clearSession() {
 
@@ -3083,212 +2501,452 @@ function clearSession() {
             "airFlightReconnectToken"
         );
 
-    } catch (err) {
-
-        warn(
-            "No se pudo borrar sesión."
+        localStorage.removeItem(
+            "airFlightRoom"
         );
 
-    }
-
+    } catch {}
 }
 
 
-/* =========================================================
-   CERRAR CONEXIÓN
-========================================================= */
+/* =====================================================
+   LIMPIAR SOLO SALA
+===================================================== */
 
-function disconnectFromServer() {
+function clearSessionRoom() {
 
-    AIR_FLIGHT.intentionalClose =
+    try {
+
+        localStorage.removeItem(
+            "airFlightRoom"
+        );
+
+    } catch {}
+}
+
+
+/* =====================================================
+   SOCKET CERRADO
+===================================================== */
+
+function handleSocketClose() {
+
+    AF.connected =
+        false;
+
+    updateConnectionUI();
+
+    showMessage(
+        "🔴 Servidor desconectado"
+    );
+
+    scheduleReconnect();
+}
+
+
+/* =====================================================
+   SOCKET ERROR
+===================================================== */
+
+function handleSocketError(error) {
+
+    console.error(
+        "❌ WebSocket:",
+        error
+    );
+
+    AF.connected =
+        false;
+
+    updateConnectionUI();
+}
+
+
+/* =====================================================
+   RECONEXIÓN AUTOMÁTICA
+===================================================== */
+
+function scheduleReconnect() {
+
+    if (
+        AF.reconnecting
+    ) {
+        return;
+    }
+
+    if (
+        AF.reconnectAttempts >=
+        AF.maxReconnectAttempts
+    ) {
+
+        showMessage(
+            "❌ No se pudo reconectar"
+        );
+
+        return;
+    }
+
+
+    AF.reconnecting =
+        true;
+
+    AF.reconnectAttempts++;
+
+
+    setTimeout(
+        () => {
+
+            AF.reconnecting =
+                false;
+
+            connectToServer();
+
+        },
+        AF.reconnectDelay
+    );
+}
+
+
+/* =====================================================
+   BOTONES DEL HTML
+===================================================== */
+
+function setupButtons() {
+
+    /*
+       Crear sala
+    */
+
+    const createButtons = [
+
+        getElement(
+            "createRoomButton",
+            "createRoomBtn"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const button
+        of createButtons
+    ) {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                createRoom(
+                    AF.plane
+                );
+
+            }
+        );
+    }
+
+
+    /*
+       Partida al azar
+    */
+
+    const randomButtons = [
+
+        getElement(
+            "randomMatchButton",
+            "randomMatchBtn",
+            "findMatchButton"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const button
+        of randomButtons
+    ) {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                findMatch(
+                    AF.plane
+                );
+
+            }
+        );
+    }
+
+
+    /*
+       Unirse por código
+    */
+
+    const joinButtons = [
+
+        getElement(
+            "joinRoomButton",
+            "joinRoomBtn"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const button
+        of joinButtons
+    ) {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const input =
+                    getElement(
+                        "roomCodeInput",
+                        "joinRoomInput",
+                        "roomInput"
+                    );
+
+                if (!input) {
+                    return;
+                }
+
+                joinRoom(
+                    input.value,
+                    AF.plane
+                );
+
+            }
+        );
+    }
+
+
+    /*
+       Salir
+    */
+
+    const leaveButtons = [
+
+        getElement(
+            "leaveRoomButton",
+            "leaveRoomBtn"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const button
+        of leaveButtons
+    ) {
+
+        button.addEventListener(
+            "click",
+            leaveRoom
+        );
+    }
+
+
+    /*
+       Iniciar
+    */
+
+    const startButtons = [
+
+        getElement(
+            "startMatchButton",
+            "startMatchBtn"
+        )
+
+    ].filter(Boolean);
+
+
+    for (
+        const button
+        of startButtons
+    ) {
+
+        button.addEventListener(
+            "click",
+            startMatch
+        );
+    }
+}
+
+
+/* =====================================================
+   PLANO
+===================================================== */
+
+function setPlane(plane) {
+
+    const number =
+        Number(plane);
+
+    if (
+        !Number.isInteger(
+            number
+        )
+    ) {
+        return;
+    }
+
+    if (
+        number < 0 ||
+        number > 13
+    ) {
+        return;
+    }
+
+    AF.plane =
+        number;
+}
+
+
+/* =====================================================
+   INICIALIZACIÓN
+===================================================== */
+
+function initializeAIRFLIGHT() {
+
+    if (
+        AF.initialized
+    ) {
+        return;
+    }
+
+    AF.initialized =
         true;
 
 
-    if (
-        AIR_FLIGHT.reconnectTimer
-    ) {
+    loadSession();
 
-        clearTimeout(
-            AIR_FLIGHT.reconnectTimer
-        );
+    setupButtons();
 
-        AIR_FLIGHT.reconnectTimer =
-            null;
+    updateConnectionUI();
 
-    }
+    updateHealthUI();
 
+    updateStatsUI();
 
-    if (
-        AIR_FLIGHT.socket
-    ) {
+    updateMatchUI();
 
-        AIR_FLIGHT.socket.close();
-
-    }
+    connectToServer();
 
 
-    AIR_FLIGHT.connected =
-        false;
-
+    console.log(
+        "✈️ AIR FLIGHT SCRIPT.JS INICIADO"
+    );
 }
 
 
-/* =========================================================
-   EXPONER FUNCIONES PARA INDEX.HTML
-========================================================= */
+/* =====================================================
+   API GLOBAL
+===================================================== */
 
 window.AIR_FLIGHT =
-    AIR_FLIGHT;
+    {
+
+        connect:
+            connectToServer,
+
+        send:
+            sendMessage,
+
+        createRoom:
+            createRoom,
+
+        joinRoom:
+            joinRoom,
+
+        findMatch:
+            findMatch,
+
+        join:
+            joinMultiplayer,
+
+        leaveRoom:
+            leaveRoom,
+
+        startMatch:
+            startMatch,
+
+        fireMissile:
+            fireMissile,
+
+        updatePlayer:
+            sendPlayerUpdate,
+
+        setPlane:
+            setPlane,
+
+        getPlayers:
+            () =>
+                Array.from(
+                    AF.players.values()
+                ),
+
+        getMissiles:
+            () =>
+                Array.from(
+                    AF.missiles.values()
+                ),
+
+        getState:
+            () => ({
+                connected:
+                    AF.connected,
+
+                playerId:
+                    AF.playerId,
+
+                roomCode:
+                    AF.roomCode,
+
+                gameState:
+                    AF.gameState,
+
+                health:
+                    AF.health,
+
+                maxHealth:
+                    AF.maxHealth,
+
+                alive:
+                    AF.alive,
+
+                kills:
+                    AF.kills,
+
+                deaths:
+                    AF.deaths,
+
+                score:
+                    AF.score,
+
+                timeRemaining:
+                    AF.timeRemaining
+            })
+
+    };
 
 
-window.connectToServer =
-    connectToServer;
+/* =====================================================
+   INICIAR CUANDO CARGUE EL HTML
+===================================================== */
 
+if (
+    document.readyState ===
+    "loading"
+) {
 
-window.createRoom =
-    createRoom;
+    document.addEventListener(
+        "DOMContentLoaded",
+        initializeAIRFLIGHT
+    );
 
+} else {
 
-window.joinRoom =
-    joinRoom;
-
-
-window.findMatch =
-    findMatch;
-
-
-window.joinMultiplayer =
-    joinMultiplayer;
-
-
-window.leaveRoom =
-    leaveRoom;
-
-
-window.startMatch =
-    startMatch;
-
-
-window.setPlane =
-    setPlane;
-
-
-window.fireMissile =
-    fireMissile;
-
-
-window.removeMissile =
-    removeMissile;
-
-
-window.damagePlayer =
-    damagePlayer;
-
-
-window.updateLocalPosition =
-    updateLocalPosition;
-
-
-window.sendPlayerUpdate =
-    sendPlayerUpdate;
-
-
-window.disconnectFromServer =
-    disconnectFromServer;
-
-
-/* =========================================================
-   INICIAR
-========================================================= */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        loadSession();
-
-        connectToServer();
-
-        updateHUD();
-
-        updateRoomUI();
-
-        updateGameState();
-
-    }
-);
-
-
-/* =========================================================
-   PROTECCIÓN AL CERRAR PÁGINA
-========================================================= */
-
-window.addEventListener(
-    "beforeunload",
-    () => {
-
-        /*
-           No borramos la sesión.
-           El server permite reconectarse
-           durante RECONNECT_GRACE_TIME.
-        */
-
-    }
-);
-
-
-/* =========================================================
-   EXPORTACIÓN FINAL
-========================================================= */
-
-log(
-    "✈️ AIR FLIGHT script.js cargado correctamente"
-);
-
-log(
-    "📡 Sistema WebSocket preparado"
-);
-
-log(
-    "👥 Sistema de jugadores preparado"
-);
-
-log(
-    "🏠 Sistema de salas preparado"
-);
-
-log(
-    "🚀 Sistema de misiles preparado"
-);
-
-log(
-    "❤️ Sistema de vida preparado"
-);
-
-log(
-    "💥 Sistema de daño preparado"
-);
-
-log(
-    "🏆 Sistema de puntuación preparado"
-);
-
-log(
-    "☠️ Sistema de kills/muertes preparado"
-);
-
-log(
-    "🔄 Sistema de respawn preparado"
-);
-
-log(
-    "⏱️ Sistema de temporizador preparado"
-);
-
-log(
-    "🏁 Sistema de final de partida preparado"
-);
-
-log(
-    "🔌 Conexión con server.js preparada"
-);
+    initializeAIRFLIGHT();
+}
